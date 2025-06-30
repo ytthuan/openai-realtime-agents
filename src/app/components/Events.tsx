@@ -3,12 +3,14 @@
 import React, { useRef, useEffect, useState } from "react";
 import { useEvent } from "@/app/contexts/EventContext";
 import { LoggedEvent } from "@/app/types";
+import { DoubleArrowLeftIcon, DoubleArrowRightIcon } from "@radix-ui/react-icons";
 
 export interface EventsProps {
   isExpanded: boolean;
+  setIsExpanded: (val: boolean) => void;
 }
 
-function Events({ isExpanded }: EventsProps) {
+function Events({ isExpanded, setIsExpanded }: EventsProps) {
   const [prevEventLogs, setPrevEventLogs] = useState<LoggedEvent[]>([]);
   const eventLogsContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -43,6 +45,13 @@ function Events({ isExpanded }: EventsProps) {
         <div>
           <div className="flex items-center justify-between px-6 py-3.5 sticky top-0 z-10 text-base border-b bg-white rounded-t-xl">
             <span className="font-semibold">Logs</span>
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="text-sm px-2 py-1 rounded-md bg-gray-200 hover:bg-gray-300 flex items-center justify-center"
+              title={isExpanded ? "Collapse logs" : "Expand logs"}
+            >
+              {isExpanded ? <DoubleArrowRightIcon /> : <DoubleArrowLeftIcon />}
+            </button>
           </div>
           <div>
             {loggedEvents.map((log, idx) => {

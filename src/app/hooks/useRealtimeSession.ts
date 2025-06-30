@@ -4,6 +4,7 @@ import {
   RealtimeAgent,
   OpenAIRealtimeWebRTC,
 } from '@openai/agents/realtime';
+import { setTracingDisabled } from '@openai/agents';
 
 import { audioFormatForCodec, applyCodecPreferences } from '../lib/codecUtils';
 import { useEvent } from '../contexts/EventContext';
@@ -17,6 +18,7 @@ export interface RealtimeSessionCallbacks {
 
 export interface ConnectOptions {
   getEphemeralKey: () => Promise<string>;
+  webrtcUrl?: string;
   initialAgents: RealtimeAgent[];
   audioElement?: HTMLAudioElement;
   extraContext?: Record<string, any>;
@@ -111,6 +113,7 @@ export function useRealtimeSession(callbacks: RealtimeSessionCallbacks = {}) {
   const connect = useCallback(
     async ({
       getEphemeralKey,
+      webrtcUrl,
       initialAgents,
       audioElement,
       extraContext,
@@ -128,8 +131,18 @@ export function useRealtimeSession(callbacks: RealtimeSessionCallbacks = {}) {
       const codecParam = codecParamRef.current;
       const audioFormat = audioFormatForCodec(codecParam);
 
+      // Check if we're using Azure (indicated by webrtcUrl being provided)
+      const isAzure = !!webrtcUrl;
+
+      // Disable tracing for Azure as session.tracing parameter is not supported
+      if (isAzure) {
+        setTracingDisabled(true);
+        console.warn('Azure OpenAI detected: tracing disabled due to incompatibility');
+      }
+
       sessionRef.current = new RealtimeSession(rootAgent, {
         transport: new OpenAIRealtimeWebRTC({
+          baseUrl: webrtcUrl,
           audioElement,
           // Set preferred codec before offer creation
           changePeerConnection: async (pc: RTCPeerConnection) => {
@@ -137,13 +150,15 @@ export function useRealtimeSession(callbacks: RealtimeSessionCallbacks = {}) {
             return pc;
           },
         }),
-        model: 'gpt-4o-realtime-preview-2025-06-03',
+        model: isAzure ? 'gpt-4o-mini-realtime-preview' : 'gpt-4o-mini-realtime-preview',
         config: {
           inputAudioFormat: audioFormat,
           outputAudioFormat: audioFormat,
-          inputAudioTranscription: {
+          inputAudioTranscription: isAzure ? undefined : {
             model: 'gpt-4o-mini-transcribe',
           },
+          // Disable session tracing for Azure as it's not supported
+          ...(isAzure ? {} : {}),
         },
         outputGuardrails: outputGuardrails ?? [],
         context: extraContext ?? {},

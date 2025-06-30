@@ -15,6 +15,8 @@ interface BottomToolbarProps {
   setIsAudioPlaybackEnabled: (val: boolean) => void;
   codec: string;
   onCodecChange: (newCodec: string) => void;
+  showFunctionCalls: boolean;
+  setShowFunctionCalls: (val: boolean) => void;
 }
 
 function BottomToolbar({
@@ -31,6 +33,8 @@ function BottomToolbar({
   setIsAudioPlaybackEnabled,
   codec,
   onCodecChange,
+  showFunctionCalls,
+  setShowFunctionCalls,
 }: BottomToolbarProps) {
   const isConnected = sessionStatus === "CONNECTED";
   const isConnecting = sessionStatus === "CONNECTING";
@@ -59,7 +63,7 @@ function BottomToolbar({
   }
 
   return (
-    <div className="p-4 flex flex-row items-center justify-center gap-x-8">
+    <div className="p-4 flex flex-row items-center justify-center gap-x-6">
       <button
         onClick={onToggleConnection}
         className={getConnectionButtonClasses()}
@@ -116,7 +120,7 @@ function BottomToolbar({
         </label>
       </div>
 
-      <div className="flex flex-row items-center gap-2">
+      <div className="flex flex-row items-center gap-1">
         <input
           id="logs"
           type="checkbox"
@@ -127,6 +131,33 @@ function BottomToolbar({
         <label htmlFor="logs" className="flex items-center cursor-pointer">
           Logs
         </label>
+        <button
+          onClick={() => setIsEventsPaneExpanded(!isEventsPaneExpanded)}
+          className={`ml-1 px-2 py-1 text-sm rounded-md ${isEventsPaneExpanded ? 'bg-gray-300' : 'bg-gray-200'} hover:bg-gray-300`}
+          title={isEventsPaneExpanded ? "Hide logs" : "Show logs"}
+        >
+          {isEventsPaneExpanded ? "Hide" : "Show"}
+        </button>
+      </div>
+
+      <div className="flex flex-row items-center gap-1">
+        <input
+          id="functions"
+          type="checkbox"
+          checked={showFunctionCalls}
+          onChange={(e) => setShowFunctionCalls(e.target.checked)}
+          className="w-4 h-4"
+        />
+        <label htmlFor="functions" className="flex items-center cursor-pointer">
+          Functions
+        </label>
+        <button
+          onClick={() => setShowFunctionCalls(!showFunctionCalls)}
+          className={`ml-1 px-2 py-1 text-sm rounded-md ${showFunctionCalls ? 'bg-gray-300' : 'bg-gray-200'} hover:bg-gray-300`}
+          title={showFunctionCalls ? "Hide function calls" : "Show function calls"}
+        >
+          {showFunctionCalls ? "Hide" : "Show"}
+        </button>
       </div>
 
       <div className="flex flex-row items-center gap-2">

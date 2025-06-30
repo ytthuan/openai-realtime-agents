@@ -14,6 +14,8 @@ export interface TranscriptProps {
   onSendMessage: () => void;
   canSend: boolean;
   downloadRecording: () => void;
+  showFunctionCalls: boolean;
+  setShowFunctionCalls: (val: boolean) => void;
 }
 
 function Transcript({
@@ -22,6 +24,8 @@ function Transcript({
   onSendMessage,
   canSend,
   downloadRecording,
+  showFunctionCalls,
+  setShowFunctionCalls,
 }: TranscriptProps) {
   const { transcriptItems, toggleTranscriptItemExpand } = useTranscript();
   const transcriptRef = useRef<HTMLDivElement | null>(null);
@@ -114,6 +118,11 @@ function Transcript({
               } = item;
 
             if (isHidden) {
+              return null;
+            }
+
+            // Hide BREADCRUMB items (function calls) when showFunctionCalls is false
+            if (!showFunctionCalls && type === "BREADCRUMB") {
               return null;
             }
 

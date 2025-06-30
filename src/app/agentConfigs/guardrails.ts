@@ -39,7 +39,7 @@ export async function runGuardrailClassifier(
     },
     body: JSON.stringify({
       model: 'gpt-4o-mini',
-      input: messages,
+      messages: messages,
       text: {
         format: zodTextFormat(GuardrailOutputZod, 'output_format'),
       },
@@ -52,15 +52,39 @@ export async function runGuardrailClassifier(
   }
 
   const data = await response.json();
+  console.log('Guardrail response data:', JSON.stringify(data, null, 2));
 
   try {
-    const output = GuardrailOutputZod.parse(data.output_parsed);
+    // Handle Azure OpenAI chat completions response structure
+    let contentToParse;
+    if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
+      // Azure OpenAI chat completions format
+      const rawContent = data.choices[0].message.content;
+      console.log('Raw content from Azure OpenAI:', rawContent);
+      try {
+        contentToParse = JSON.parse(rawContent);
+      } catch (jsonError) {
+        console.error('Failed to parse JSON from Azure OpenAI response:', jsonError);
+        console.error('Raw content was:', rawContent);
+        throw new Error('Response content is not valid JSON');
+      }
+    } else if (data.output_parsed) {
+      // Original format (if still used)
+      contentToParse = data.output_parsed;
+    } else {
+      console.error('Unexpected response format:', data);
+      throw new Error('Unable to find parseable content in response');
+    }
+
+    console.log('Content to parse:', contentToParse);
+    const output = GuardrailOutputZod.parse(contentToParse);
     return {
       ...output,
       testText: message,
     };
   } catch (error) {
     console.error('Error parsing the message content as GuardrailOutput:', error);
+    console.error('Raw data:', data);
     return Promise.reject('Failed to parse guardrail output.');
   }
 }

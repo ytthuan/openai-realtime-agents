@@ -27,12 +27,14 @@ import { chatSupervisorScenario } from "@/app/agentConfigs/chatSupervisor";
 import { customerServiceRetailCompanyName } from "@/app/agentConfigs/customerServiceRetail";
 import { chatSupervisorCompanyName } from "@/app/agentConfigs/chatSupervisor";
 import { simpleHandoffScenario } from "@/app/agentConfigs/simpleHandoff";
+import { shopdunkScenario, shopdunkCompanyName } from "@/app/agentConfigs/shopdunk";
 
 // Map used by connect logic for scenarios defined via the SDK.
 const sdkScenarioMap: Record<string, RealtimeAgent[]> = {
   simpleHandoff: simpleHandoffScenario,
   customerServiceRetail: customerServiceRetailScenario,
   chatSupervisor: chatSupervisorScenario,
+  shopdunk: shopdunkScenario,
 };
 
 import useAudioDownload from "./hooks/useAudioDownload";
@@ -110,13 +112,8 @@ function App() {
   const [userText, setUserText] = useState<string>("");
   const [isPTTActive, setIsPTTActive] = useState<boolean>(false);
   const [isPTTUserSpeaking, setIsPTTUserSpeaking] = useState<boolean>(false);
-  const [isAudioPlaybackEnabled, setIsAudioPlaybackEnabled] = useState<boolean>(
-    () => {
-      if (typeof window === 'undefined') return true;
-      const stored = localStorage.getItem('audioPlaybackEnabled');
-      return stored ? stored === 'true' : true;
-    },
-  );
+  const [showFunctionCalls, setShowFunctionCalls] = useState<boolean>(true);
+  const [isAudioPlaybackEnabled, setIsAudioPlaybackEnabled] = useState<boolean>(true);
 
   // Initialize the recording hook.
   const { startRecording, stopRecording, downloadRecording } =
@@ -174,24 +171,39 @@ function App() {
 
   useEffect(() => {
     if (sessionStatus === "CONNECTED") {
-      updateSession();
+      updateSession(false); // Don't trigger response for PTT changes
     }
   }, [isPTTActive]);
 
-  const fetchEphemeralKey = async (): Promise<string | null> => {
+  const fetchSessionInfo = async (): Promise<{
+    key: string;
+    url?: string;
+  } | null> => {
     logClientEvent({ url: "/session" }, "fetch_session_token_request");
     const tokenResponse = await fetch("/api/session");
     const data = await tokenResponse.json();
     logServerEvent(data, "fetch_session_token_response");
 
+    if (data.is_azure) {
+      if (!data.ephemeral_key) {
+        logClientEvent(data, "error.no_ephemeral_key");
+        console.error(
+          "No ephemeral key provided by the Azure-configured server"
+        );
+        setSessionStatus("DISCONNECTED");
+        return null;
+      }
+      return { key: data.ephemeral_key, url: data.webrtc_url };
+    }
+
+    // Standard OpenAI
     if (!data.client_secret?.value) {
       logClientEvent(data, "error.no_ephemeral_key");
       console.error("No ephemeral key provided by the server");
       setSessionStatus("DISCONNECTED");
       return null;
     }
-
-    return data.client_secret.value;
+    return { key: data.client_secret.value, url: data.webrtc?.url };
   };
 
   const connectToRealtime = async () => {
@@ -201,8 +213,8 @@ function App() {
       setSessionStatus("CONNECTING");
 
       try {
-        const EPHEMERAL_KEY = await fetchEphemeralKey();
-        if (!EPHEMERAL_KEY) return;
+        const sessionInfo = await fetchSessionInfo();
+        if (!sessionInfo) return;
 
         // Ensure the selectedAgentName is first so that it becomes the root
         const reorderedAgents = [...sdkScenarioMap[agentSetKey]];
@@ -214,11 +226,14 @@ function App() {
 
         const companyName = agentSetKey === 'customerServiceRetail'
           ? customerServiceRetailCompanyName
+          : agentSetKey === 'shopdunk'
+          ? shopdunkCompanyName
           : chatSupervisorCompanyName;
         const guardrail = createModerationGuardrail(companyName);
 
         await connect({
-          getEphemeralKey: async () => EPHEMERAL_KEY,
+          getEphemeralKey: async () => sessionInfo.key,
+          webrtcUrl: sessionInfo.url,
           initialAgents: reorderedAgents,
           audioElement: sdkAudioElement,
           outputGuardrails: [guardrail],
@@ -264,9 +279,9 @@ function App() {
       ? null
       : {
           type: 'server_vad',
-          threshold: 0.9,
+          threshold: 0.6, // Less sensitive to avoid picking up background noise
           prefix_padding_ms: 300,
-          silence_duration_ms: 500,
+          silence_duration_ms: 800, // Longer silence duration
           create_response: true,
         };
 
@@ -359,6 +374,10 @@ function App() {
     if (storedLogsExpanded) {
       setIsEventsPaneExpanded(storedLogsExpanded === "true");
     }
+    const storedShowFunctionCalls = localStorage.getItem("showFunctionCalls");
+    if (storedShowFunctionCalls) {
+      setShowFunctionCalls(storedShowFunctionCalls === "true");
+    }
     const storedAudioPlaybackEnabled = localStorage.getItem(
       "audioPlaybackEnabled"
     );
@@ -374,6 +393,10 @@ function App() {
   useEffect(() => {
     localStorage.setItem("logsExpanded", isEventsPaneExpanded.toString());
   }, [isEventsPaneExpanded]);
+
+  useEffect(() => {
+    localStorage.setItem("showFunctionCalls", showFunctionCalls.toString());
+  }, [showFunctionCalls]);
 
   useEffect(() => {
     localStorage.setItem(
@@ -441,8 +464,9 @@ function App() {
         >
           <div>
             <Image
-              src="/openai-logomark.svg"
-              alt="OpenAI Logo"
+              // src="/azureopenai-logomark.svg"
+              src="/azureai-logomark.png"
+              alt="Azure OpenAI Logo"
               width={20}
               height={20}
               className="mr-2"
@@ -524,9 +548,14 @@ function App() {
           canSend={
             sessionStatus === "CONNECTED"
           }
+          showFunctionCalls={showFunctionCalls}
+          setShowFunctionCalls={setShowFunctionCalls}
         />
 
-        <Events isExpanded={isEventsPaneExpanded} />
+        <Events 
+          isExpanded={isEventsPaneExpanded} 
+          setIsExpanded={setIsEventsPaneExpanded} 
+        />
       </div>
 
       <BottomToolbar
@@ -543,6 +572,8 @@ function App() {
         setIsAudioPlaybackEnabled={setIsAudioPlaybackEnabled}
         codec={urlCodec}
         onCodecChange={handleCodecChange}
+        showFunctionCalls={showFunctionCalls}
+        setShowFunctionCalls={setShowFunctionCalls}
       />
     </div>
   );

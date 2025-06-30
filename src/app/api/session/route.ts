@@ -2,21 +2,84 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const response = await fetch(
-      "https://api.openai.com/v1/realtime/sessions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-realtime-preview-2025-06-03",
-        }),
-      }
-    );
+    // Azure OpenAI configuration
+    const azureEndpoint = process.env.AZURE_OPENAI_ENDPOINT;
+    const azureApiKey = process.env.AZURE_OPENAI_API_KEY;
+
+    if (!azureEndpoint || !azureApiKey) {
+      console.error("Azure OpenAI configuration missing");
+      return NextResponse.json(
+        { error: "Azure OpenAI configuration missing. Please set AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY." },
+        { status: 500 }
+      );
+    }
+
+    const model =
+      process.env.REALTIME_MODEL ??
+      process.env.AZURE_OPENAI_REALTIME_DEPLOYMENT_NAME ??
+              "gpt-4o-mini-realtime-preview";
+
+    // Azure OpenAI API call
+    const apiVersion = process.env.OPENAI_API_VERSION ?? "2025-04-01-preview";
+    const url = `${azureEndpoint.replace(
+      /\/+$/,
+      ""
+    )}/openai/realtimeapi/sessions?api-version=${apiVersion}`;
+    const headers = {
+      "api-key": azureApiKey,
+      "Content-Type": "application/json",
+    };
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ model }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(
+        "Error from Azure sessions API:",
+        response.status,
+        errorText
+      );
+      return NextResponse.json(
+        { error: `Error from Azure: ${response.status} ${errorText}` },
+        { status: response.status }
+      );
+    }
+
     const data = await response.json();
-    return NextResponse.json(data);
+    const ephemeralKey = data.client_secret?.value;
+    const azureRegion = process.env.AZURE_OPENAI_REGION ?? "eastus";
+
+    if (!ephemeralKey) {
+      console.error("Ephemeral key not found in Azure response:", data);
+      return NextResponse.json(
+        { error: "Ephemeral key not found in Azure response" },
+        { status: 500 }
+      );
+    }
+
+    if (!azureRegion) {
+      console.error("AZURE_OPENAI_REGION is not set");
+      return NextResponse.json(
+        {
+          error:
+            "AZURE_OPENAI_REGION environment variable is not set. It's required for Azure WebRTC connection.",
+        },
+        { status: 500 }
+      );
+    }
+
+    const webrtcUrl = `https://${azureRegion}.realtimeapi-preview.ai.azure.com/v1/realtimertc`;
+
+    return NextResponse.json({
+      ephemeral_key: ephemeralKey,
+      webrtc_url: webrtcUrl,
+      model: model,
+      is_azure: true,
+    });
   } catch (error) {
     console.error("Error in /session:", error);
     return NextResponse.json(

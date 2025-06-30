@@ -1,0 +1,18 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="blueGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6B73FF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1E40AF;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="pinkGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#D946EF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#EC4899;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Main angular blue shape -->
+  <path d="M8 88 Q8 92 12 92 L45 92 Q49 92 49 88 L49 50 L72 50 Q76 50 76 46 L76 12 Q76 8 72 8 L30 8 Q26 8 24 12 L8 84 Q8 88 8 88 Z" fill="url(#blueGradient)"/>
+  
+  <!-- Pink accent rectangle -->
+  <path d="M55 25 Q55 21 59 21 L88 21 Q92 21 92 25 L92 60 Q92 64 88 64 L59 64 Q55 64 55 60 L55 25 Z" fill="url(#pinkGradient)"/>
+</svg> 
