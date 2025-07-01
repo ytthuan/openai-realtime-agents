@@ -3,10 +3,13 @@ import {
   RealtimeSession,
   RealtimeAgent,
   OpenAIRealtimeWebRTC,
+  
+  
 } from '@openai/agents/realtime';
-import { setTracingDisabled } from '@openai/agents';
+// import { setTracingDisabled } from '@openai/agents';
 
 import { audioFormatForCodec, applyCodecPreferences } from '../lib/codecUtils';
+import { getTranscriptModel, getRealtimeModel } from '../lib/envSetup';
 import { useEvent } from '../contexts/EventContext';
 import { useHandleSessionHistory } from './useHandleSessionHistory';
 import { SessionStatus } from '../types';
@@ -60,6 +63,10 @@ export function useRealtimeSession(callbacks: RealtimeSessionCallbacks = {}) {
         historyHandlers.handleTranscriptionDelta(event);
         break;
       }
+      case "conversation.item.input_audio_transcription.failed": {
+        historyHandlers.handleTranscriptionFailed(event);
+        break;
+      }
       default: {
         logServerEvent(event);
         break;
@@ -110,6 +117,8 @@ export function useRealtimeSession(callbacks: RealtimeSessionCallbacks = {}) {
     }
   }, [sessionRef.current]);
 
+  // this function is used to connect to the realtime session
+  // this function will be called from file 
   const connect = useCallback(
     async ({
       getEphemeralKey,
@@ -119,8 +128,10 @@ export function useRealtimeSession(callbacks: RealtimeSessionCallbacks = {}) {
       extraContext,
       outputGuardrails,
     }: ConnectOptions) => {
-      if (sessionRef.current) return; // already connected
 
+      if (sessionRef.current) return; // already connected
+      const transcriptModel = getTranscriptModel();
+      const realtimeModel = getRealtimeModel();
       updateStatus('CONNECTING');
 
       const ek = await getEphemeralKey();
@@ -132,14 +143,6 @@ export function useRealtimeSession(callbacks: RealtimeSessionCallbacks = {}) {
       const audioFormat = audioFormatForCodec(codecParam);
 
       // Check if we're using Azure (indicated by webrtcUrl being provided)
-      const isAzure = !!webrtcUrl;
-
-      // Disable tracing for Azure as session.tracing parameter is not supported
-      if (isAzure) {
-        setTracingDisabled(true);
-        console.warn('Azure OpenAI detected: tracing disabled due to incompatibility');
-      }
-
       sessionRef.current = new RealtimeSession(rootAgent, {
         transport: new OpenAIRealtimeWebRTC({
           baseUrl: webrtcUrl,
@@ -150,15 +153,13 @@ export function useRealtimeSession(callbacks: RealtimeSessionCallbacks = {}) {
             return pc;
           },
         }),
-        model: isAzure ? 'gpt-4o-mini-realtime-preview' : 'gpt-4o-mini-realtime-preview',
+        model: realtimeModel,
         config: {
           inputAudioFormat: audioFormat,
           outputAudioFormat: audioFormat,
-          inputAudioTranscription: isAzure ? undefined : {
-            model: 'gpt-4o-mini-transcribe',
+          inputAudioTranscription: {
+            model: transcriptModel,
           },
-          // Disable session tracing for Azure as it's not supported
-          ...(isAzure ? {} : {}),
         },
         outputGuardrails: outputGuardrails ?? [],
         context: extraContext ?? {},

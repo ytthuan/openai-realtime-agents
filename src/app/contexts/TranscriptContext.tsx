@@ -43,11 +43,29 @@ export const TranscriptProvider: FC<PropsWithChildren> = ({ children }) => {
 
   const addTranscriptMessage: TranscriptContextValue["addTranscriptMessage"] = (itemId, role, text = "", isHidden = false) => {
     setTranscriptItems((prev) => {
-      if (prev.some((log) => log.itemId === itemId && log.type === "MESSAGE")) {
-        console.warn(`[addTranscriptMessage] skipping; message already exists for itemId=${itemId}, role=${role}, text=${text}`);
-        return prev;
+      // Check if message already exists
+      const existingIndex = prev.findIndex(
+        (log) => log.itemId === itemId && log.type === "MESSAGE"
+      );
+
+      // If found, update the existing entry (e.g., un-hide placeholder)
+      if (existingIndex !== -1) {
+        const existing = prev[existingIndex];
+
+        // Only update fields that may have changed
+        const updated: TranscriptItem = {
+          ...existing,
+          role: existing.role ?? role,
+          title: text || existing.title,
+          isHidden: false,
+        };
+
+        const updatedArr = [...prev];
+        updatedArr[existingIndex] = updated;
+        return updatedArr;
       }
 
+      // Otherwise, create a brand-new message entry
       const newItem: TranscriptItem = {
         itemId,
         type: "MESSAGE",
@@ -64,6 +82,7 @@ export const TranscriptProvider: FC<PropsWithChildren> = ({ children }) => {
     });
   };
 
+  // this function is used to update a message in the transcript
   const updateTranscriptMessage: TranscriptContextValue["updateTranscriptMessage"] = (itemId, newText, append = false) => {
     setTranscriptItems((prev) =>
       prev.map((item) => {
@@ -78,6 +97,7 @@ export const TranscriptProvider: FC<PropsWithChildren> = ({ children }) => {
     );
   };
 
+  // this function is used to add a breadcrumb to the transcript => breadcrumb is a message that is not a user message or assistant message
   const addTranscriptBreadcrumb: TranscriptContextValue["addTranscriptBreadcrumb"] = (title, data) => {
     setTranscriptItems((prev) => [
       ...prev,

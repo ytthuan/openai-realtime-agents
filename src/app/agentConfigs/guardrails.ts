@@ -1,5 +1,6 @@
 import { zodTextFormat } from 'openai/helpers/zod';
 import { GuardrailOutputZod, GuardrailOutput } from '@/app/types';
+import { Input } from 'postcss';
 
 // Validator that calls the /api/responses endpoint to
 // validates the realtime output according to moderation policies. 
@@ -38,8 +39,8 @@ export async function runGuardrailClassifier(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: messages,
+      model: 'gpt-4.1-mini',
+      input: messages,
       text: {
         format: zodTextFormat(GuardrailOutputZod, 'output_format'),
       },
@@ -52,7 +53,7 @@ export async function runGuardrailClassifier(
   }
 
   const data = await response.json();
-  console.log('Guardrail response data:', JSON.stringify(data, null, 2));
+  // console.log('Guardrail response data:', JSON.stringify(data, null, 2));
 
   try {
     // Handle Azure OpenAI chat completions response structure
@@ -71,6 +72,29 @@ export async function runGuardrailClassifier(
     } else if (data.output_parsed) {
       // Original format (if still used)
       contentToParse = data.output_parsed;
+    } else if (typeof data.output_text === 'string') {
+      // OpenAI Responses API top-level output_text field
+      try {
+        contentToParse = JSON.parse(data.output_text);
+      } catch (jsonError) {
+        console.error('Failed to parse JSON from Responses API output_text:', jsonError);
+        console.error('output_text was:', data.output_text);
+        throw new Error('Response content is not valid JSON');
+      }
+    } else if (
+      Array.isArray(data.output) &&
+      data.output[0]?.content?.[0]?.text &&
+      typeof data.output[0].content[0].text === 'string'
+    ) {
+      // OpenAI Responses API detailed output structure
+      const rawText = data.output[0].content[0].text;
+      try {
+        contentToParse = JSON.parse(rawText);
+      } catch (jsonError) {
+        console.error('Failed to parse JSON from Responses API nested text:', jsonError);
+        console.error('Nested text was:', rawText);
+        throw new Error('Response content is not valid JSON');
+      }
     } else {
       console.error('Unexpected response format:', data);
       throw new Error('Unable to find parseable content in response');

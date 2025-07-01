@@ -230,7 +230,7 @@ function App() {
           ? shopdunkCompanyName
           : chatSupervisorCompanyName;
         const guardrail = createModerationGuardrail(companyName);
-
+        console.log("session url: ", sessionInfo.url);
         await connect({
           getEphemeralKey: async () => sessionInfo.key,
           webrtcUrl: sessionInfo.url,
@@ -406,12 +406,33 @@ function App() {
   }, [isAudioPlaybackEnabled]);
 
   useEffect(() => {
+    const tryPlay = () => {
+      if (!audioElementRef.current) return;
+      audioElementRef.current
+        .play()
+        .then(() => {
+          // Playback started successfully – no further action needed.
+        })
+        .catch((err) => {
+          console.warn("Autoplay may be blocked by browser:", err);
+          // Wait for first user interaction, then retry.
+          window.addEventListener(
+            "click",
+            tryPlay,
+            { once: true }
+          );
+          window.addEventListener(
+            "keydown",
+            tryPlay,
+            { once: true }
+          );
+        });
+    };
+
     if (audioElementRef.current) {
       if (isAudioPlaybackEnabled) {
         audioElementRef.current.muted = false;
-        audioElementRef.current.play().catch((err) => {
-          console.warn("Autoplay may be blocked by browser:", err);
-        });
+        tryPlay();
       } else {
         // Mute and pause to avoid brief audio blips before pause takes effect.
         audioElementRef.current.muted = true;
@@ -420,12 +441,19 @@ function App() {
     }
 
     // Toggle server-side audio stream mute so bandwidth is saved when the
-    // user disables playback. 
+    // user disables playback.
     try {
       mute(!isAudioPlaybackEnabled);
     } catch (err) {
-      console.warn('Failed to toggle SDK mute', err);
+      console.warn("Failed to toggle SDK mute", err);
     }
+
+    // Cleanup interaction listeners if the component unmounts or the
+    // dependency changes before playback succeeds.
+    return () => {
+      window.removeEventListener("click", tryPlay);
+      window.removeEventListener("keydown", tryPlay);
+    };
   }, [isAudioPlaybackEnabled]);
 
   // Ensure mute state is propagated to transport right after we connect or

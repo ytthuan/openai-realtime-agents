@@ -25,7 +25,7 @@ function Transcript({
   canSend,
   downloadRecording,
   showFunctionCalls,
-  setShowFunctionCalls,
+  // setShowFunctionCalls,
 }: TranscriptProps) {
   const { transcriptItems, toggleTranscriptItemExpand } = useTranscript();
   const transcriptRef = useRef<HTMLDivElement | null>(null);

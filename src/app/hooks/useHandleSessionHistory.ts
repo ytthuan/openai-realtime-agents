@@ -160,6 +160,14 @@ export function useHandleSessionHistory() {
     }
   }
 
+  function handleTranscriptionFailed(item: any) {
+    const itemId = item.item_id;
+    if (itemId) {
+      updateTranscriptMessage(itemId, '[inaudible]', false);
+      updateTranscriptItem(itemId, { status: 'DONE' });
+    }
+  }
+
   function handleGuardrailTripped(details: any, _agent: any, guardrail: any) {
     console.log("[guardrail tripped]", details, _agent, guardrail);
     const moderation = extractModeration(guardrail.result.output.outputInfo);
@@ -191,6 +199,7 @@ export function useHandleSessionHistory() {
     handleHistoryAdded,
     handleTranscriptionDelta,
     handleTranscriptionCompleted,
+    handleTranscriptionFailed,
     handleGuardrailTripped,
   });
 

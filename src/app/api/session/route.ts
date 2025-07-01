@@ -1,4 +1,9 @@
+// this file is used to get the ephemeral key and webrtc url for the azure openai realtime api
+// it is used in the app/hooks/useRealtimeSession.ts file
+// follow the docs in https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/realtime-audio-webrtc
+
 import { NextResponse } from "next/server";
+import { getRealtimeModel } from "@/app/lib/envSetup";
 
 export async function GET() {
   try {
@@ -14,10 +19,7 @@ export async function GET() {
       );
     }
 
-    const model =
-      process.env.REALTIME_MODEL ??
-      process.env.AZURE_OPENAI_REALTIME_DEPLOYMENT_NAME ??
-              "gpt-4o-mini-realtime-preview";
+    const model = getRealtimeModel();
 
     // Azure OpenAI API call
     const apiVersion = process.env.OPENAI_API_VERSION ?? "2025-04-01-preview";
@@ -33,7 +35,10 @@ export async function GET() {
     const response = await fetch(url, {
       method: "POST",
       headers,
-      body: JSON.stringify({ model }),
+      body: JSON.stringify({ 
+        model:model, 
+        voice: "sage"
+      }),
     });
 
     if (!response.ok) {
@@ -51,7 +56,7 @@ export async function GET() {
 
     const data = await response.json();
     const ephemeralKey = data.client_secret?.value;
-    const azureRegion = process.env.AZURE_OPENAI_REGION ?? "eastus";
+    const azureRegion = process.env.AZURE_OPENAI_REGION ?? "eastus2";
 
     if (!ephemeralKey) {
       console.error("Ephemeral key not found in Azure response:", data);
