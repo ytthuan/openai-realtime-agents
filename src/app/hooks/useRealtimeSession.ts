@@ -6,7 +6,6 @@ import {
   
   
 } from '@openai/agents/realtime';
-// import { setTracingDisabled } from '@openai/agents';
 
 import { audioFormatForCodec, applyCodecPreferences } from '../lib/codecUtils';
 import { getTranscriptModel, getRealtimeModel } from '../lib/envSetup';
@@ -141,7 +140,6 @@ export function useRealtimeSession(callbacks: RealtimeSessionCallbacks = {}) {
       //  simulate how the voice agent sounds over a PSTN/SIP phone call.
       const codecParam = codecParamRef.current;
       const audioFormat = audioFormatForCodec(codecParam);
-
       // Check if we're using Azure (indicated by webrtcUrl being provided)
       sessionRef.current = new RealtimeSession(rootAgent, {
         transport: new OpenAIRealtimeWebRTC({
@@ -159,7 +157,7 @@ export function useRealtimeSession(callbacks: RealtimeSessionCallbacks = {}) {
           outputAudioFormat: audioFormat,
           inputAudioTranscription: {
             model: transcriptModel,
-          },
+          }
         },
         outputGuardrails: outputGuardrails ?? [],
         context: extraContext ?? {},

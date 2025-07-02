@@ -20,266 +20,110 @@ const activeCarts = new Map<string, Cart>();
 // Initialize with mock carts
 mockCarts.forEach(cart => activeCarts.set(cart.id, cart));
 
-export const shopdunkAgent = new RealtimeAgent({
-  name: 'Sales agent',
+export const salesAgent = new RealtimeAgent({
+  name: 'sales',
   voice: 'sage',
+  handoffDescription:
+    'Sales team - Advise customers on Apple and Samsung products, provide prices, add to cart, and process orders.',
+
   instructions: `
-  # Personality and Tone
+# Identify and Personality
+## Identify
+You are Lily, the sales team at ShopDunk. You are knowledgeable about Apple and Samsung products. You are enthusiastic about advising customers and helping them choose the best product.
 
-  ## Identity
-  
-  You are ShopDunk Assistant, a friendly, concise, and professional voice-enabled shopping assistant on the ShopDunk storefront. You represent the brand’s expert guide, speaking clear Vietnamese as a knowledgeable store associate ready to help every shopper.
-  
-  ## Task
-  
-  You assist customers with product information, availability, and ordering on ShopDunk’s online store. You answer questions, guide users through checkout, and confirm details.
-  
-  ## Demeanor
-  
-  You maintain a polite and helpful disposition, conveying expertise without being overly formal.
-  
-  ## Tone
-  
-  Your voice is clear, professional, and concise. You avoid slang and jargon, using simple Vietnamese so everyone can understand.
-  
-  ## Level of Enthusiasm
-  
-  You speak with moderate warmth and energy to keep the conversation engaging but not overexcited.
-  
-  ## Level of Formality
-  
-  You use professional language, addressing customers respectfully but naturally.
-  
-  ## Level of Emotion
-  
-  You are lightly expressive to show empathy, yet remain focused and matter-of-fact.
-  
-  ## Filler Words
-  
-  None. You speak directly and efficiently.
-  
-  ## Pacing
-  
-  Your speech is measured and steady, giving users time to absorb information.
-  
-  ## Other details
-  
-  - Always use complete sentences under 50 words.
-  - If you need spelling or numbers (e.g., customer name, phone), repeat them back for confirmation.
-  - If a user corrects any detail, acknowledge the correction and confirm the new value by saying: “Cảm ơn anh chị đã sửa lại. Giá trị mới là: …. Đúng không ạ?”
-  
-  # Instructions
-  
-  * Follow the Conversation States closely to ensure structured, consistent interactions.
-  * When asking for or confirming names, phone numbers, or order details, always repeat them back to the user for accuracy.
-  * If a detail is corrected, respond: “Cảm ơn anh chị đã sửa lại. Giá trị mới là: …. Đúng không ạ?”
-  
-  # Conversation States (json format)
-  
-  
-  [
-    {
-      "id": "1_greeting",
-      "description": "Chào mừng khách và hỏi xem có thể hỗ trợ gì.",
-      "instructions": [
-        "Chào khách bằng tiếng Việt đơn giản và lịch sự.",
-        "Hỏi rõ khách cần hỗ trợ gì hôm nay."
-      ],
-      "examples": [
-        "Chào mừng đến với ShopDunk. Em có thể giúp gì cho anh chị hôm nay?",
-        "Chào anh chị! Bạn đang quan tâm sản phẩm nào ạ?"
-      ],
-      "transitions": [
-        {
-          "next_step": "2_product_inquiry",
-          "condition": "Khách nêu yêu cầu sản phẩm hoặc thông tin."
-        }
-      ]
-    },
-    {
-      "id": "2_product_inquiry",
-      "description": "Lấy thông tin sản phẩm khách quan tâm.",
-      "instructions": [
-        "Hỏi tên hoặc mã sản phẩm khách muốn xem.",
-        "Xác nhận lại thông tin khách vừa cung cấp."
-      ],
-      "examples": [
-        "Anh chị cho em biết tên hoặc mã sản phẩm được không ạ?",
-        "Sản phẩm A123, đúng không ạ?"
-      ],
-      "transitions": [
-        {
-          "next_step": "3_provide_details",
-          "condition": "Khi đã xác nhận được sản phẩm."
-        }
-      ]
-    },
-    {
-      "id": "3_provide_details",
-      "description": "Cung cấp thông tin chi tiết, giá và tồn kho.",
-      "instructions": [
-        "Nêu nhanh đặc điểm, giá bán, và tình trạng kho của sản phẩm.",
-        "Hỏi xem khách có muốn đặt mua hay cần thêm trợ giúp."
-      ],
-      "examples": [
-        "Sản phẩm đó có giá 5.000.000₫, còn hàng sẵn. Anh chị có muốn đặt ngay không ạ?",
-        "Máy còn hàng, giá 10.000.000₫. Anh chị cần thêm thông tin nào khác?"
-      ],
-      "transitions": [
-        {
-          "next_step": "4_collect_customer_info",
-          "condition": "Khách muốn đặt mua."
-        },
-        {
-          "next_step": "2_product_inquiry",
-          "condition": "Khách muốn hỏi sản phẩm khác."
-        }
-      ]
-    },
-    {
-      "id": "4_collect_customer_info",
-      "description": "Thu thập thông tin đặt hàng của khách.",
-      "instructions": [
-        "Hỏi tên và yêu cầu khách đánh vần để xác nhận.",
-        "Hỏi số điện thoại và xác nhận bằng cách lặp lại."
-      ],
-      "examples": [
-        "Vui lòng cho em biết tên của anh chị, và anh chị đánh vần giúp em nhé.",
-        "Số điện thoại của anh chị là bao nhiêu ạ? Em sẽ lặp lại để xác nhận."
-      ],
-      "transitions": [
-        {
-          "next_step": "5_confirm_order",
-          "condition": "Khi đã thu thập đủ tên và số điện thoại."
-        }
-      ]
-    },
-    {
-      "id": "5_confirm_order",
-      "description": "Xác nhận lại toàn bộ thông tin đơn hàng.",
-      "instructions": [
-        "Lặp lại tên, số điện thoại, sản phẩm, và số lượng.",
-        "Hỏi khách xác nhận lại một lần cuối."
-      ],
-      "examples": [
-        "Xin xác nhận: Anh chị là Nguyễn Văn A, số 0912345678, đặt 1 chiếc A123. Đúng không ạ?",
-        "Thông tin đơn hàng: 1 sản phẩm X, tên anh chị B, số điện thoại 09xxxx. Có chính xác không ạ?"
-      ],
-      "transitions": [
-        {
-          "next_step": "6_complete_order",
-          "condition": "Khách xác nhận đúng."
-        },
-        {
-          "next_step": "4_collect_customer_info",
-          "condition": "Khách sửa thông tin."
-        }
-      ]
-    },
-    {
-      "id": "6_complete_order",
-      "description": "Hoàn thành đặt hàng và cảm ơn khách.",
-      "instructions": [
-        "Thông báo đơn hàng đã được tiếp nhận.",
-        "Cảm ơn và hướng dẫn bước tiếp theo (giao hàng)."
-      ],
-      "examples": [
-        "Cảm ơn anh chị! Đơn hàng đã được ghi nhận, chúng em sẽ liên hệ để xác nhận giao hàng.",
-        "Đơn hàng thành công. Anh chị sẽ nhận được thông báo trong email hoặc SMS sớm nhất."
-      ],
-      "transitions": []
-    }
-  ]
-  `,
+## Tasks
+- Advise customers on Apple and Samsung products
+- Provide accurate prices and current promotions
+- Support adding products to the cart
+- Review the cart and process orders
+- Collect information and verify OTP when placing an order
 
-//   instructions: `
-// # Nhận Dạng
-// Bạn là trợ lý mua sắm bằng giọng nói cho cửa hàng trực tuyến ShopDunk. Bạn sẽ trả lời bằng tiếng Việt rõ ràng, đơn giản.
+## Style
+- Friendly, enthusiastic but not pushy
+- Professional and knowledgeable about products
+- Listen to customer needs
+- Advise according to budget
 
-// # Nhiệm Vụ
-// - Trả lời câu hỏi về sản phẩm Apple và Samsung
-// - Cung cấp giá cả hiện tại
-// - Thêm sản phẩm vào giỏ hàng
-// - Xem lại giỏ hàng
-// - Thu thập thông tin khách hàng
-// - Đặt hàng sau khi xác thực OTP
+## Language
+- Use clear, easy-to-understand Vietnamese
+- Short sentences, maximum 50 words
+- Read prices in Vietnamese (e.g., "20 million VND")
+- Address the customer as "Mr/Ms" respectfully
 
-// # Phong Cách
-// - Thân thiện, chuyên nghiệp
-// - Câu trả lời ngắn gọn (tối đa 50 từ)
-// - Không dùng ký tự đặc biệt hoặc emoji
-// - Đọc giá bằng tiếng Việt (ví dụ: "hai mươi triệu đồng")
-// - Trước khi thực hiện gọi tools, hãy inform khách hàng "anh/chị chờ em chút nhé..."
+## Emotions
+Enthusiastic but respectful of the customer's decision.
 
-// # Quy Trình Làm Việc
+## Pace
+Fast, saving time for the customer.
 
-// ## Chào Hỏi
-// "Chào mừng đến với ShopDunk. Em có thể giúp gì cho anh/chị?"
+# Important Notes
+- You know the customer's name and phone number from the verification step
+- If the customer asks about returns or checks an old order, guide them to the returns department
+- If there is a complex issue, suggest transferring to customer support
+- Always confirm product details before adding to cart
 
+# Workflow
 
-// ## Tìm Kiếm Sản Phẩm
-// 1. Dùng search_products với từ khóa của khách
-// 2. Mô tả ngắn gọn sản phẩm tìm được
-// 3. Hỏi có muốn biết giá không
+## Advise Product
+1. Listen to customer needs
+2. Use search_products to find a suitable product
+3. Briefly introduce the main features
+4. Ask if the customer wants to know the price
 
-// ## Báo Giá
-// 1. Dùng get_product_price
-// 2. Đọc giá rõ ràng bằng tiếng Việt
-// 3. Luôn hỏi "Bạn có muốn thêm vào giỏ hàng không?"
+## Provide Price
+1. Use get_product_price or get_product_details
+2. Read the price clearly in Vietnamese
+3. Notify promotions if any
+4. Always ask "Do you want to add to cart?"
 
-// ## Thêm Vào Giỏ
-// 1. Xác nhận sản phẩm và số lượng
-// 2. Nếu có variant (màu, dung lượng), hỏi khách chọn
-// 3. Dùng add_to_cart
-// 4. Xác nhận đã thêm thành công
+## Add to Cart
+1. Confirm product and quantity
+2. If there are variants (color, storage), ask the customer to choose specifically
+3. Use add_to_cart
+4. Confirm the product has been added successfully
+5. Hỏi "Anh/chị còn cần gì thêm không ạ?"
 
-// ## Xem Giỏ Hàng
-// 1. Dùng get_cart_contents
-// 2. Liệt kê từng sản phẩm với số lượng
-// 3. Báo tổng tiền
+## View shopping cart
+1. Use get_cart_contents
+2. List each product with quantity
+3. Notify the total price
+4. Ask if the customer wants to adjust or place an order
 
-// ## Đặt Hàng
-// 1. Kiểm tra giỏ hàng không rỗng
-// 2. Nếu chưa có thông tin khách:
-//    - Hỏi số điện thoại: "Để đặt hàng, xin cho tôi số điện thoại của bạn?"
-//    - Hỏi tên: "Và tên đầy đủ của bạn nữa ạ?"
-//    - Gửi OTP: "Tôi đã gửi mã xác nhận đến điện thoại của bạn. Xin hãy đọc mã cho tôi."
-// 3. Xác thực OTP
-// 4. Đặt hàng và báo mã đơn hàng
+## Process Order
+1. Check if the cart is not empty
+2. Confirm customer information (from authentication)
+3. Send OTP: "I have sent the OTP to your phone. Please read the code for me."
+4. Verify OTP with verify_otp
+5. Place order with place_order
+6. Notify the order ID and thank the customer
 
-// ## Xử Lý Lỗi
-// - Không tìm thấy: "Tôi không tìm thấy sản phẩm đó. Bạn có thể thử tên khác được không?"
-// - Hết hàng: "Sản phẩm đó hiện đang hết hàng. Bạn có muốn xem sản phẩm tương tự không?"
-// - OTP sai: "Mã đó không đúng. Vui lòng kiểm tra và thử lại."
-
-// # Lưu Ý Quan Trọng
-// - Luôn lặp lại số điện thoại và tên để xác nhận
-// - Không tiết lộ toàn bộ số điện thoại (chỉ 4 số cuối)
-// - Giữ thông tin khách hàng bảo mật
-// - Theo dõi ngữ cảnh cuộc hội thoại
-// - Nếu khách nói "lặp lại", đọc lại câu trả lời trước đó
-// `,
+## Error Handling
+- Product not found: "I couldn't find that product. Could you describe it in more detail or try a different name?"
+- Out of stock: "I'm sorry, this product is temporarily out of stock. I can recommend a similar product for you."
+- OTP incorrect: "The OTP is incorrect. Please check and try again."
+- Cart empty: "The cart is empty. Do you want me to recommend a product?"
+`,
 
   tools: [
     // 1. Search products
     tool({
       name: 'search_products',
-      description: 'Search for products by query, category, or brand',
+      description: 'Search for products by keyword, category, or brand',
       parameters: {
         type: 'object',
         properties: {
           query: {
             type: 'string',
-            description: 'Search query (product name, brand, etc.)',
+            description: 'Search keyword (product name, brand, etc.)',
           },
           category: {
             type: 'string',
             enum: ['smartphones', 'tablets', 'computers', 'accessories'],
-            description: 'Product category to filter by',
+            description: 'Product category to filter',
           },
           max_results: {
             type: 'number',
-            description: 'Maximum number of results to return',
+            description: 'Maximum number of results',
             default: 3,
           },
         },
@@ -293,7 +137,7 @@ export const shopdunkAgent = new RealtimeAgent({
         if (results.length === 0) {
           return { 
             found: false, 
-            message: 'Không tìm thấy sản phẩm nào phù hợp' 
+            message: 'No products found' 
           };
         }
 
@@ -307,6 +151,7 @@ export const shopdunkAgent = new RealtimeAgent({
             description: p.descriptionVi,
             stock: p.stock,
             hasVariants: !!p.variants && p.variants.length > 0,
+            discount: p.discount,
           })),
         };
       },
@@ -321,7 +166,7 @@ export const shopdunkAgent = new RealtimeAgent({
         properties: {
           product_id: {
             type: 'string',
-            description: 'The product ID',
+            description: 'Product ID',
           },
         },
         required: ['product_id'],
@@ -332,7 +177,7 @@ export const shopdunkAgent = new RealtimeAgent({
         const product = mockProducts.find(p => p.id === product_id);
         
         if (!product) {
-          return { error: 'Không tìm thấy sản phẩm' };
+          return { error: 'Product not found' };
         }
 
         return {
@@ -360,13 +205,13 @@ export const shopdunkAgent = new RealtimeAgent({
     // 3. Get product price
     tool({
       name: 'get_product_price',
-      description: 'Get current price of a product',
+      description: 'Get the current price of a product',
       parameters: {
         type: 'object',
         properties: {
           product_id: {
             type: 'string',
-            description: 'The product ID',
+            description: 'Product ID',
           },
         },
         required: ['product_id'],
@@ -377,7 +222,7 @@ export const shopdunkAgent = new RealtimeAgent({
         const product = mockProducts.find(p => p.id === product_id);
         
         if (!product) {
-          return { error: 'Không tìm thấy sản phẩm' };
+          return { error: 'Product not found' };
         }
 
         return {
@@ -399,11 +244,11 @@ export const shopdunkAgent = new RealtimeAgent({
         properties: {
           product_id: {
             type: 'string',
-            description: 'The product ID',
+            description: 'Product ID',
           },
           quantity: {
             type: 'number',
-            description: 'Quantity to add',
+            description: 'Quantity',
             minimum: 1,
           },
           variant: {
@@ -411,7 +256,7 @@ export const shopdunkAgent = new RealtimeAgent({
             properties: {
               id: {
                 type: 'string',
-                description: 'Variant ID if product has variants',
+                description: 'Variant ID if the product has variants',
               },
             },
             additionalProperties: false,
@@ -441,13 +286,13 @@ export const shopdunkAgent = new RealtimeAgent({
 
         const product = mockProducts.find(p => p.id === product_id);
         if (!product) {
-          return { error: 'Không tìm thấy sản phẩm' };
+          return { error: 'Product not found' };
         }
 
         // Check stock
         const stockInfo = checkProductStock(product_id, variant?.id);
         if (!stockInfo.available || stockInfo.quantity < quantity) {
-          return { error: 'Sản phẩm không đủ hàng' };
+          return { error: 'Product out of stock' };
         }
 
         // Find variant if specified
@@ -455,7 +300,7 @@ export const shopdunkAgent = new RealtimeAgent({
         if (variant?.id && product.variants) {
           selectedVariant = product.variants.find(v => v.id === variant.id);
           if (!selectedVariant) {
-            return { error: 'Không tìm thấy phiên bản sản phẩm này' };
+            return { error: 'Variant not found' };
           }
         }
 
@@ -504,13 +349,13 @@ export const shopdunkAgent = new RealtimeAgent({
     // 5. Remove from cart
     tool({
       name: 'remove_from_cart',
-      description: 'Remove an item from the shopping cart',
+      description: 'Remove a product from the shopping cart',
       parameters: {
         type: 'object',
         properties: {
           cart_item_id: {
             type: 'string',
-            description: 'The cart item ID to remove',
+            description: 'Product ID in the cart to remove',
           },
         },
         required: ['cart_item_id'],
@@ -522,17 +367,17 @@ export const shopdunkAgent = new RealtimeAgent({
         const session = activeSessions.get(sessionId);
         
         if (!session?.cartId) {
-          return { error: 'Không tìm thấy giỏ hàng' };
+          return { error: 'Cart not found' };
         }
 
         const cart = activeCarts.get(session.cartId);
         if (!cart) {
-          return { error: 'Không tìm thấy giỏ hàng' };
+          return { error: 'Cart not found' };
         }
 
         const itemIndex = cart.items.findIndex(item => item.id === cart_item_id);
         if (itemIndex === -1) {
-          return { error: 'Không tìm thấy sản phẩm trong giỏ hàng' };
+          return { error: 'Product not found in cart' };
         }
 
         const removedItem = cart.items[itemIndex];
@@ -560,7 +405,7 @@ export const shopdunkAgent = new RealtimeAgent({
     // 6. Get cart contents
     tool({
       name: 'get_cart_contents',
-      description: 'Get current cart contents',
+      description: 'View the contents of the shopping cart',
       parameters: {
         type: 'object',
         properties: {},
@@ -577,7 +422,7 @@ export const shopdunkAgent = new RealtimeAgent({
         if (!cart || cart.items.length === 0) {
           return {
             empty: true,
-            message: 'Giỏ hàng trống',
+            message: 'Cart is empty',
           };
         }
 
@@ -600,61 +445,16 @@ export const shopdunkAgent = new RealtimeAgent({
       },
     }),
 
-    // 7. Capture customer info
-    tool({
-      name: 'capture_customer_info',
-      description: 'Capture customer phone and name',
-      parameters: {
-        type: 'object',
-        properties: {
-          phone: {
-            type: 'string',
-            description: 'Customer phone number',
-            pattern: '^0[0-9]{9}$',
-          },
-          name: {
-            type: 'string',
-            description: 'Customer full name',
-          },
-        },
-        required: ['phone', 'name'],
-        additionalProperties: false,
-      },
-      execute: async (input: any, details) => {
-        const { phone, name } = input;
-        const sessionId = (details?.context as any)?.sessionId || 'default';
-        
-        // Update session
-        const session = activeSessions.get(sessionId) || {
-          conversationTurns: 0,
-          customerVerified: false,
-          lastActivityTime: new Date(),
-        };
-        
-        session.customerInfo = { phone, name };
-        activeSessions.set(sessionId, session);
-
-        return {
-          success: true,
-          captured: {
-            name: name,
-            phoneLastFour: phone.slice(-4),
-          },
-          message: 'Đã lưu thông tin khách hàng',
-        };
-      },
-    }),
-
-    // 8. Send OTP
+    // 7. Send OTP
     tool({
       name: 'send_otp',
-      description: 'Send OTP to customer phone',
+      description: 'Send OTP to the customer\'s phone',
       parameters: {
         type: 'object',
         properties: {
           phone: {
             type: 'string',
-            description: 'Phone number to send OTP',
+            description: 'Customer phone number to receive OTP',
             pattern: '^0[0-9]{9}$',
           },
         },
@@ -677,11 +477,11 @@ export const shopdunkAgent = new RealtimeAgent({
         activeOTPSessions.set(phone, otpSession);
 
         // In real implementation, send SMS here
-        console.log(`[Mock SMS] Mã OTP của bạn là: ${otp}`);
+        console.log(`[Mock SMS] Your OTP is: ${otp}`);
 
         return {
           success: true,
-          message: 'Đã gửi mã xác nhận',
+          message: 'OTP sent successfully',
           phoneLastFour: phone.slice(-4),
           // For testing only - remove in production
           testOTP: otp,
@@ -689,21 +489,21 @@ export const shopdunkAgent = new RealtimeAgent({
       },
     }),
 
-    // 9. Verify OTP
+    // 8. Verify OTP
     tool({
       name: 'verify_otp',
-      description: 'Verify OTP code',
+      description: 'Verify the OTP',
       parameters: {
         type: 'object',
         properties: {
           phone: {
             type: 'string',
-            description: 'Phone number',
+            description: 'Customer phone number',
             pattern: '^0[0-9]{9}$',
           },
           code: {
             type: 'string',
-            description: 'OTP code to verify',
+            description: 'OTP to verify',
             pattern: '^[0-9]{6}$',
           },
         },
@@ -718,7 +518,7 @@ export const shopdunkAgent = new RealtimeAgent({
         if (!otpSession) {
           return {
             success: false,
-            error: 'Không tìm thấy mã xác nhận. Vui lòng yêu cầu mã mới.',
+            error: 'OTP not found. Please request a new one.',
           };
         }
 
@@ -727,7 +527,7 @@ export const shopdunkAgent = new RealtimeAgent({
           activeOTPSessions.delete(phone);
           return {
             success: false,
-            error: 'Mã xác nhận đã hết hạn. Vui lòng yêu cầu mã mới.',
+            error: 'OTP has expired. Please request a new one.',
           };
         }
 
@@ -736,7 +536,7 @@ export const shopdunkAgent = new RealtimeAgent({
           activeOTPSessions.delete(phone);
           return {
             success: false,
-            error: 'Quá nhiều lần thử sai. Vui lòng yêu cầu mã mới.',
+            error: 'Too many attempts. Please request a new one.',
           };
         }
 
@@ -745,7 +545,7 @@ export const shopdunkAgent = new RealtimeAgent({
           otpSession.attempts++;
           return {
             success: false,
-            error: 'Mã không đúng. Vui lòng thử lại.',
+            error: 'Incorrect OTP. Please try again.',
             attemptsRemaining: 3 - otpSession.attempts,
           };
         }
@@ -764,28 +564,28 @@ export const shopdunkAgent = new RealtimeAgent({
 
         return {
           success: true,
-          message: 'Xác thực thành công',
+          message: 'Verification successful',
         };
       },
     }),
 
-    // 10. Place order
+    // 9. Place order
     tool({
       name: 'place_order',
-      description: 'Place an order with cart contents',
+      description: 'Place an order with the contents of the shopping cart',
       parameters: {
         type: 'object',
         properties: {
           cart_id: {
             type: 'string',
-            description: 'Cart ID to place order from',
+            description: 'Cart ID',
           },
           customer_info: {
             type: 'object',
             properties: {
               phone: {
                 type: 'string',
-                description: 'Customer phone',
+                description: 'Customer phone number',
               },
               name: {
                 type: 'string',
@@ -808,7 +608,7 @@ export const shopdunkAgent = new RealtimeAgent({
         if (!session?.customerVerified) {
           return {
             success: false,
-            error: 'Vui lòng xác thực số điện thoại trước khi đặt hàng',
+            error: 'Please verify your phone number before placing an order',
           };
         }
 
@@ -816,7 +616,7 @@ export const shopdunkAgent = new RealtimeAgent({
         if (!cart || cart.items.length === 0) {
           return {
             success: false,
-            error: 'Giỏ hàng trống',
+            error: 'Cart is empty',
           };
         }
 
@@ -871,59 +671,15 @@ export const shopdunkAgent = new RealtimeAgent({
             itemCount: order.items.length,
             status: 'Chờ thanh toán',
           },
-          message: `Đặt hàng thành công. Mã đơn hàng của bạn là ${orderId}`,
+          message: `Order placed successfully. Your order ID is ${orderId}`,
         };
       },
     }),
 
-    // 11. Cancel order
-    tool({
-      name: 'cancel_order',
-      description: 'Cancel an order',
-      parameters: {
-        type: 'object',
-        properties: {
-          order_id: {
-            type: 'string',
-            description: 'Order ID to cancel',
-          },
-        },
-        required: ['order_id'],
-        additionalProperties: false,
-      },
-      execute: async (input: any) => {
-        const { order_id } = input;
-        
-        const order = mockOrders.find(o => o.id === order_id);
-        if (!order) {
-          return {
-            success: false,
-            error: 'Không tìm thấy đơn hàng',
-          };
-        }
-
-        if (order.status !== OrderStatus.PENDING_PAYMENT && order.status !== OrderStatus.PROCESSING) {
-          return {
-            success: false,
-            error: 'Không thể hủy đơn hàng này',
-          };
-        }
-
-        order.status = OrderStatus.CANCELLED;
-        order.updatedAt = new Date().toISOString();
-
-        return {
-          success: true,
-          orderId: order_id,
-          message: 'Đã hủy đơn hàng thành công',
-        };
-      },
-    }),
-
-    // 12. Check stock
+    // 10. Check stock
     tool({
       name: 'check_stock',
-      description: 'Check product stock availability',
+      description: 'Check the stock status of a product',
       parameters: {
         type: 'object',
         properties: {
@@ -940,7 +696,7 @@ export const shopdunkAgent = new RealtimeAgent({
         const product = mockProducts.find(p => p.id === product_id);
         
         if (!product) {
-          return { error: 'Không tìm thấy sản phẩm' };
+          return { error: 'Product not found' };
         }
 
         const stockInfo = {
@@ -958,9 +714,6 @@ export const shopdunkAgent = new RealtimeAgent({
       },
     }),
   ],
-  handoffs: [],
-});
 
-export const shopdunkScenario = [shopdunkAgent];
-export const shopdunkCompanyName = 'ShopDunk';
-export default shopdunkScenario;
+  handoffs: [], // populated later in index.ts
+}); 

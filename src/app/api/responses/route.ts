@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 
 async function structuredResponse(openai: AzureOpenAI, body: any) {
   // try {
-    const deployment = env.AZURE_OPENAI_DEPLOYMENT_MODEL ?? 'model-router';
+    // const deployment = env.AZURE_OPENAI_DEPLOYMENT_MODEL ?? 'model-router';
     
   //   // Ensure we have at least one message
   //   let messages = body.messages || [];
@@ -107,7 +107,7 @@ async function structuredResponse(openai: AzureOpenAI, body: any) {
       stream: false,
     });
     
-    // console.log('Azure OpenAI response:', JSON.stringify(response, null, 2));
+    console.log('Azure OpenAI response:', JSON.stringify(response, null, 2));
 
     return NextResponse.json(response);
   // } catch (err: any) {
@@ -118,7 +118,7 @@ async function structuredResponse(openai: AzureOpenAI, body: any) {
 
 async function textResponse(openai: AzureOpenAI, body: any) {
   try {
-    const deployment = env.AZURE_OPENAI_DEPLOYMENT_MODEL ?? 'model-router';
+    // const deployment = env.AZURE_OPENAI_DEPLOYMENT_MODEL ?? 'model-router';
     
     // Ensure we have at least one message
     let messages = body.messages || [];
@@ -132,7 +132,7 @@ async function textResponse(openai: AzureOpenAI, body: any) {
       // max_tokens: body.max_tokens || 1000,
       // temperature: body.temperature || 0.7,
     });
-
+    console.log('Azure OpenAI response:', JSON.stringify(response, null, 2));
     return NextResponse.json(response);
   } catch (err: any) {
     console.error('responses proxy error', err);

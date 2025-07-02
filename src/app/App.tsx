@@ -28,6 +28,7 @@ import { customerServiceRetailCompanyName } from "@/app/agentConfigs/customerSer
 import { chatSupervisorCompanyName } from "@/app/agentConfigs/chatSupervisor";
 import { simpleHandoffScenario } from "@/app/agentConfigs/simpleHandoff";
 import { shopdunkScenario, shopdunkCompanyName } from "@/app/agentConfigs/shopdunk";
+import { shopdunkServiceRetailScenario, shopdunkServiceRetailCompanyName } from "@/app/agentConfigs/shopdunkServiceRetail";
 
 // Map used by connect logic for scenarios defined via the SDK.
 const sdkScenarioMap: Record<string, RealtimeAgent[]> = {
@@ -35,6 +36,7 @@ const sdkScenarioMap: Record<string, RealtimeAgent[]> = {
   customerServiceRetail: customerServiceRetailScenario,
   chatSupervisor: chatSupervisorScenario,
   shopdunk: shopdunkScenario,
+  shopdunkServiceRetail: shopdunkServiceRetailScenario,
 };
 
 import useAudioDownload from "./hooks/useAudioDownload";
@@ -228,6 +230,8 @@ function App() {
           ? customerServiceRetailCompanyName
           : agentSetKey === 'shopdunk'
           ? shopdunkCompanyName
+          : agentSetKey === 'shopdunkServiceRetail'
+          ? shopdunkServiceRetailCompanyName
           : chatSupervisorCompanyName;
         const guardrail = createModerationGuardrail(companyName);
         console.log("session url: ", sessionInfo.url);
