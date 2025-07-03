@@ -19,4 +19,4 @@ export const shopdunkServiceRetailScenario = [
 ];
 
 // Name of the company represented by this agent set. Used by guardrails
-export const shopdunkServiceRetailCompanyName = 'ShopDunk'; 
+export const shopdunkServiceRetailCompanyName = 'ShopDunkRetail'; 

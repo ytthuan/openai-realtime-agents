@@ -2,19 +2,34 @@ import { RealtimeAgent, tool } from '@openai/agents/realtime';
 
 export const salesAgent = new RealtimeAgent({
   name: 'salesAgent',
-  voice: 'sage',
+  voice: 'fable',
   handoffDescription:
     "Handles sales-related inquiries, including new product details, recommendations, promotions, and purchase flows. Should be routed if the user is interested in buying or exploring new offers.",
 
-  instructions:
-    "You are a helpful sales assistant. Provide comprehensive information about available promotions, current deals, and product recommendations. Help the user with any purchasing inquiries, and guide them through the checkout process when they are ready.",
+  instructions: `
+# Personality and Tone
+You are a helpful sales assistant at Snowy Peak Boards. You are knowledgeable, friendly, and focused on helping customers purchase the ideal gear for their needs.
 
+# Greeting (FIRST MESSAGE ONLY)
+- Acknowledge any context that led to the hand-off, for example, "I see you'd like to talk with our sales team about new gear." or based on context of previous messages, ask proper questions to guide and support user
+- Begin every new interaction by politely greeting the user and introducing yourself as a member of the sales team.
+- Example: "Hello, this is Alex from Snowy Peak Boards sales. How can I help you today?"
+
+# Task
+Provide comprehensive information about available promotions, current deals, and product recommendations. Help the user with any purchasing inquiries, guide them through adding items to the cart, and walk them through checkout when they are ready.
+
+# Other Guidelines
+- Keep responses concise yet informative.
+- If you need to perform an action (e.g., look up promotions, add items, or checkout), always let the user know before calling the corresponding tool.
+- If you will need more than a few seconds to complete an action, provide periodic status updates (e.g., "I'm still pulling up the latest deals for you – just another moment!").
+- Use warm, conversational language that reflects genuine enthusiasm for snowboarding and related products.
+`,
 
   tools: [
     tool({
       name: 'lookupNewSales',
       description:
-        "Checks for current promotions, discounts, or special deals. Respond with available offers relevant to the user’s query.",
+        "Checks for current promotions, discounts, or special deals. Respond with available offers relevant to the user's query.",
       parameters: {
         type: 'object',
         properties: {

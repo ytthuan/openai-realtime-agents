@@ -173,7 +173,7 @@ function App() {
 
   useEffect(() => {
     if (sessionStatus === "CONNECTED") {
-      updateSession(false); // Don't trigger response for PTT changes
+      updateSession(); // Don't trigger response for PTT changes
     }
   }, [isPTTActive]);
 
@@ -226,6 +226,7 @@ function App() {
           reorderedAgents.unshift(agent);
         }
 
+        // below is code for company name
         const companyName = agentSetKey === 'customerServiceRetail'
           ? customerServiceRetailCompanyName
           : agentSetKey === 'shopdunk'

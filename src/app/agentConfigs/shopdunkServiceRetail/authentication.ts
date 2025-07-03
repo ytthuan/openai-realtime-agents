@@ -1,4 +1,7 @@
 import { RealtimeAgent, tool } from '@openai/agents/realtime';
+import { returnsAgent } from './returns';
+import { salesAgent } from './sales';
+import { supportAgent } from './support';
 
 export const authenticationAgent = new RealtimeAgent({
   name: 'authentication',
@@ -177,5 +180,5 @@ Speak at a moderate pace, clear, giving the customer time to understand and resp
     }),
   ],
 
-  handoffs: [], // populated later in index.ts
+  handoffs: [returnsAgent, salesAgent, supportAgent], // populated later in index.ts
 }); 
