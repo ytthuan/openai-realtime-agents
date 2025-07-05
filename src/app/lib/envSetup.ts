@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 
-dotenv.config({path: './env'})
+dotenv.config({path: '.env'})
 
 // Model constants and environment variable setup
 export const DEFAULT_TRANSCRIPT_MODEL = 'gpt-4o-mini-transcribe';

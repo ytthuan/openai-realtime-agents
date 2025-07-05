@@ -286,7 +286,7 @@ function App() {
           type: 'server_vad',
           threshold: 0.6, // Less sensitive to avoid picking up background noise
           prefix_padding_ms: 300,
-          silence_duration_ms: 800, // Longer silence duration
+          silence_duration_ms: 500, // Longer silence duration
           create_response: true,
         };
 

@@ -32,6 +32,10 @@ const nextConfig: NextConfig = {
         source: '/(.*)',
         headers: [
           {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
+          },
+          {
             key: 'Cross-Origin-Embedder-Policy',
             value: 'require-corp',
           },
