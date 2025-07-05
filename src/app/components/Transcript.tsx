@@ -1,6 +1,6 @@
 "use-client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import { TranscriptItem } from "@/app/types";
 import Image from "next/image";
@@ -18,6 +18,109 @@ export interface TranscriptProps {
   setShowFunctionCalls: (val: boolean) => void;
 }
 
+// Memoized message component to prevent unnecessary re-renders
+const TranscriptMessage = React.memo(({ item }: { item: TranscriptItem }) => {
+  const { itemId, type, role, data, expanded, timestamp, title = "", isHidden, guardrailResult } = item;
+  const { toggleTranscriptItemExpand } = useTranscript();
+  
+  const handleToggleExpand = useCallback(() => {
+    if (data) {
+      toggleTranscriptItemExpand(itemId);
+    }
+  }, [itemId, data, toggleTranscriptItemExpand]);
+
+  if (isHidden) {
+    return null;
+  }
+
+  if (type === "MESSAGE") {
+    const isUser = role === "user";
+    const containerClasses = `flex justify-end flex-col ${
+      isUser ? "items-end" : "items-start"
+    }`;
+    const bubbleBase = `max-w-lg p-3 ${
+      isUser ? "bg-gray-900 text-gray-100" : "bg-gray-100 text-black"
+    }`;
+    const isBracketedMessage = title.startsWith("[") && title.endsWith("]");
+    const messageStyle = isBracketedMessage ? 'italic text-gray-400' : '';
+    const displayTitle = isBracketedMessage ? title.slice(1, -1) : title;
+
+    return (
+      <div key={itemId} className={containerClasses}>
+        <div className="max-w-lg">
+          <div
+            className={`${bubbleBase} rounded-t-xl ${
+              guardrailResult ? "" : "rounded-b-xl"
+            }`}
+          >
+            <div
+              className={`text-xs ${
+                isUser ? "text-gray-400" : "text-gray-500"
+              } font-mono`}
+            >
+              {timestamp}
+            </div>
+            <div className={`whitespace-pre-wrap ${messageStyle}`}>
+              <ReactMarkdown>{displayTitle}</ReactMarkdown>
+            </div>
+          </div>
+          {guardrailResult && (
+            <div className="bg-gray-200 px-3 py-2 rounded-b-xl">
+              <GuardrailChip guardrailResult={guardrailResult} />
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  } else if (type === "BREADCRUMB") {
+    return (
+      <div
+        key={itemId}
+        className="flex flex-col justify-start items-start text-gray-500 text-sm"
+      >
+        <span className="text-xs font-mono">{timestamp}</span>
+        <div
+          className={`whitespace-pre-wrap flex items-center font-mono text-sm text-gray-800 ${
+            data ? "cursor-pointer" : ""
+          }`}
+          onClick={handleToggleExpand}
+        >
+          {data && (
+            <span
+              className={`text-gray-400 mr-1 transform transition-transform duration-200 select-none font-mono ${
+                expanded ? "rotate-90" : "rotate-0"
+              }`}
+            >
+              ▶
+            </span>
+          )}
+          {title}
+        </div>
+        {expanded && data && (
+          <div className="text-gray-800 text-left">
+            <pre className="border-l-2 ml-1 border-gray-200 whitespace-pre-wrap break-words font-mono text-xs mb-2 mt-2 pl-2">
+              {JSON.stringify(data, null, 2)}
+            </pre>
+          </div>
+        )}
+      </div>
+    );
+  } else {
+    // Fallback if type is neither MESSAGE nor BREADCRUMB
+    return (
+      <div
+        key={itemId}
+        className="flex justify-center text-gray-500 text-sm italic font-mono"
+      >
+        Unknown item type: {type}{" "}
+        <span className="ml-2 text-xs">{timestamp}</span>
+      </div>
+    );
+  }
+});
+
+TranscriptMessage.displayName = 'TranscriptMessage';
+
 function Transcript({
   userText,
   setUserText,
@@ -33,11 +136,22 @@ function Transcript({
   const [justCopied, setJustCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  function scrollToBottom() {
+  const scrollToBottom = useCallback(() => {
     if (transcriptRef.current) {
       transcriptRef.current.scrollTop = transcriptRef.current.scrollHeight;
     }
-  }
+  }, []);
+
+  // Memoize filtered and sorted transcript items
+  const filteredTranscriptItems = useMemo(() => {
+    return transcriptItems
+      .filter(item => {
+        if (item.isHidden) return false;
+        if (!showFunctionCalls && item.type === "BREADCRUMB") return false;
+        return true;
+      })
+      .sort((a, b) => a.createdAtMs - b.createdAtMs);
+  }, [transcriptItems, showFunctionCalls]);
 
   useEffect(() => {
     const hasNewMessage = transcriptItems.length > prevLogs.length;
@@ -54,7 +168,7 @@ function Transcript({
     }
 
     setPrevLogs(transcriptItems);
-  }, [transcriptItems]);
+  }, [transcriptItems, prevLogs, scrollToBottom]);
 
   // Autofocus on text box input on load
   useEffect(() => {
@@ -63,7 +177,7 @@ function Transcript({
     }
   }, [canSend]);
 
-  const handleCopyTranscript = async () => {
+  const handleCopyTranscript = useCallback(async () => {
     if (!transcriptRef.current) return;
     try {
       await navigator.clipboard.writeText(transcriptRef.current.innerText);
@@ -72,7 +186,23 @@ function Transcript({
     } catch (error) {
       console.error("Failed to copy transcript:", error);
     }
-  };
+  }, []);
+
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setUserText(e.target.value);
+  }, [setUserText]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && canSend) {
+      onSendMessage();
+    }
+  }, [canSend, onSendMessage]);
+
+  const handleSendClick = useCallback(() => {
+    if (canSend && userText.trim()) {
+      onSendMessage();
+    }
+  }, [canSend, userText, onSendMessage]);
 
   return (
     <div className="flex flex-col flex-1 bg-white min-h-0 rounded-xl">
@@ -102,120 +232,9 @@ function Transcript({
           ref={transcriptRef}
           className="overflow-auto p-4 flex flex-col gap-y-4 h-full"
         >
-          {[...transcriptItems]
-            .sort((a, b) => a.createdAtMs - b.createdAtMs)
-            .map((item) => {
-              const {
-                itemId,
-                type,
-                role,
-                data,
-                expanded,
-                timestamp,
-                title = "",
-                isHidden,
-                guardrailResult,
-              } = item;
-
-            if (isHidden) {
-              return null;
-            }
-
-            // Hide BREADCRUMB items (function calls) when showFunctionCalls is false
-            if (!showFunctionCalls && type === "BREADCRUMB") {
-              return null;
-            }
-
-            if (type === "MESSAGE") {
-              const isUser = role === "user";
-              const containerClasses = `flex justify-end flex-col ${
-                isUser ? "items-end" : "items-start"
-              }`;
-              const bubbleBase = `max-w-lg p-3 ${
-                isUser ? "bg-gray-900 text-gray-100" : "bg-gray-100 text-black"
-              }`;
-              const isBracketedMessage =
-                title.startsWith("[") && title.endsWith("]");
-              const messageStyle = isBracketedMessage
-                ? 'italic text-gray-400'
-                : '';
-              const displayTitle = isBracketedMessage
-                ? title.slice(1, -1)
-                : title;
-
-              return (
-                <div key={itemId} className={containerClasses}>
-                  <div className="max-w-lg">
-                    <div
-                      className={`${bubbleBase} rounded-t-xl ${
-                        guardrailResult ? "" : "rounded-b-xl"
-                      }`}
-                    >
-                      <div
-                        className={`text-xs ${
-                          isUser ? "text-gray-400" : "text-gray-500"
-                        } font-mono`}
-                      >
-                        {timestamp}
-                      </div>
-                      <div className={`whitespace-pre-wrap ${messageStyle}`}>
-                        <ReactMarkdown>{displayTitle}</ReactMarkdown>
-                      </div>
-                    </div>
-                    {guardrailResult && (
-                      <div className="bg-gray-200 px-3 py-2 rounded-b-xl">
-                        <GuardrailChip guardrailResult={guardrailResult} />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            } else if (type === "BREADCRUMB") {
-              return (
-                <div
-                  key={itemId}
-                  className="flex flex-col justify-start items-start text-gray-500 text-sm"
-                >
-                  <span className="text-xs font-mono">{timestamp}</span>
-                  <div
-                    className={`whitespace-pre-wrap flex items-center font-mono text-sm text-gray-800 ${
-                      data ? "cursor-pointer" : ""
-                    }`}
-                    onClick={() => data && toggleTranscriptItemExpand(itemId)}
-                  >
-                    {data && (
-                      <span
-                        className={`text-gray-400 mr-1 transform transition-transform duration-200 select-none font-mono ${
-                          expanded ? "rotate-90" : "rotate-0"
-                        }`}
-                      >
-                        ▶
-                      </span>
-                    )}
-                    {title}
-                  </div>
-                  {expanded && data && (
-                    <div className="text-gray-800 text-left">
-                      <pre className="border-l-2 ml-1 border-gray-200 whitespace-pre-wrap break-words font-mono text-xs mb-2 mt-2 pl-2">
-                        {JSON.stringify(data, null, 2)}
-                      </pre>
-                    </div>
-                  )}
-                </div>
-              );
-            } else {
-              // Fallback if type is neither MESSAGE nor BREADCRUMB
-              return (
-                <div
-                  key={itemId}
-                  className="flex justify-center text-gray-500 text-sm italic font-mono"
-                >
-                  Unknown item type: {type}{" "}
-                  <span className="ml-2 text-xs">{timestamp}</span>
-                </div>
-              );
-            }
-          })}
+          {filteredTranscriptItems.map((item) => (
+            <TranscriptMessage key={item.itemId} item={item} />
+          ))}
         </div>
       </div>
 
@@ -224,17 +243,13 @@ function Transcript({
           ref={inputRef}
           type="text"
           value={userText}
-          onChange={(e) => setUserText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && canSend) {
-              onSendMessage();
-            }
-          }}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
           className="flex-1 px-4 py-2 focus:outline-none"
           placeholder="Type a message..."
         />
         <button
-          onClick={onSendMessage}
+          onClick={handleSendClick}
           disabled={!canSend || !userText.trim()}
           className="bg-gray-900 text-white rounded-full px-2 py-2 disabled:opacity-50"
         >
@@ -245,4 +260,4 @@ function Transcript({
   );
 }
 
-export default Transcript;
+export default React.memo(Transcript);

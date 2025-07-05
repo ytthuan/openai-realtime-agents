@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useMemo } from "react";
 import { SessionStatus } from "@/app/types";
 
 interface BottomToolbarProps {
@@ -39,18 +39,42 @@ function BottomToolbar({
   const isConnected = sessionStatus === "CONNECTED";
   const isConnecting = sessionStatus === "CONNECTING";
 
-  const handleCodecChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleCodecChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     const newCodec = e.target.value;
     onCodecChange(newCodec);
-  };
+  }, [onCodecChange]);
 
-  function getConnectionButtonLabel() {
+  const handlePTTActiveChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setIsPTTActive(e.target.checked);
+  }, [setIsPTTActive]);
+
+  const handleAudioPlaybackChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setIsAudioPlaybackEnabled(e.target.checked);
+  }, [setIsAudioPlaybackEnabled]);
+
+  const handleLogsChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setIsEventsPaneExpanded(e.target.checked);
+  }, [setIsEventsPaneExpanded]);
+
+  const handleFunctionsChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setShowFunctionCalls(e.target.checked);
+  }, [setShowFunctionCalls]);
+
+  const toggleEventsPaneExpanded = useCallback(() => {
+    setIsEventsPaneExpanded(!isEventsPaneExpanded);
+  }, [isEventsPaneExpanded, setIsEventsPaneExpanded]);
+
+  const toggleShowFunctionCalls = useCallback(() => {
+    setShowFunctionCalls(!showFunctionCalls);
+  }, [showFunctionCalls, setShowFunctionCalls]);
+
+  const connectionButtonLabel = useMemo(() => {
     if (isConnected) return "Disconnect";
     if (isConnecting) return "Connecting...";
     return "Connect";
-  }
+  }, [isConnected, isConnecting]);
 
-  function getConnectionButtonClasses() {
+  const connectionButtonClasses = useMemo(() => {
     const baseClasses = "text-white text-base p-2 w-36 rounded-md h-full";
     const cursorClass = isConnecting ? "cursor-not-allowed" : "cursor-pointer";
 
@@ -60,16 +84,23 @@ function BottomToolbar({
     }
     // Disconnected or connecting -> label is either "Connect" or "Connecting" -> black
     return `bg-black hover:bg-gray-900 ${cursorClass} ${baseClasses}`;
-  }
+  }, [isConnected, isConnecting]);
+
+  const talkButtonClasses = useMemo(() => {
+    const baseClasses = "py-1 px-4 cursor-pointer rounded-md";
+    const speakingClass = isPTTUserSpeaking ? "bg-gray-300" : "bg-gray-200";
+    const disabledClass = !isPTTActive ? " bg-gray-100 text-gray-400" : "";
+    return `${speakingClass} ${baseClasses}${disabledClass}`;
+  }, [isPTTUserSpeaking, isPTTActive]);
 
   return (
     <div className="p-4 flex flex-row items-center justify-center gap-x-6">
       <button
         onClick={onToggleConnection}
-        className={getConnectionButtonClasses()}
+        className={connectionButtonClasses}
         disabled={isConnecting}
       >
-        {getConnectionButtonLabel()}
+        {connectionButtonLabel}
       </button>
 
       <div className="flex flex-row items-center gap-2">
@@ -77,7 +108,7 @@ function BottomToolbar({
           id="push-to-talk"
           type="checkbox"
           checked={isPTTActive}
-          onChange={(e) => setIsPTTActive(e.target.checked)}
+          onChange={handlePTTActiveChange}
           disabled={!isConnected}
           className="w-4 h-4"
         />
@@ -93,11 +124,7 @@ function BottomToolbar({
           onTouchStart={handleTalkButtonDown}
           onTouchEnd={handleTalkButtonUp}
           disabled={!isPTTActive}
-          className={
-            (isPTTUserSpeaking ? "bg-gray-300" : "bg-gray-200") +
-            " py-1 px-4 cursor-pointer rounded-md" +
-            (!isPTTActive ? " bg-gray-100 text-gray-400" : "")
-          }
+          className={talkButtonClasses}
         >
           Talk
         </button>
@@ -108,7 +135,7 @@ function BottomToolbar({
           id="audio-playback"
           type="checkbox"
           checked={isAudioPlaybackEnabled}
-          onChange={(e) => setIsAudioPlaybackEnabled(e.target.checked)}
+          onChange={handleAudioPlaybackChange}
           disabled={!isConnected}
           className="w-4 h-4"
         />
@@ -125,14 +152,14 @@ function BottomToolbar({
           id="logs"
           type="checkbox"
           checked={isEventsPaneExpanded}
-          onChange={(e) => setIsEventsPaneExpanded(e.target.checked)}
+          onChange={handleLogsChange}
           className="w-4 h-4"
         />
         <label htmlFor="logs" className="flex items-center cursor-pointer">
           Logs
         </label>
         <button
-          onClick={() => setIsEventsPaneExpanded(!isEventsPaneExpanded)}
+          onClick={toggleEventsPaneExpanded}
           className={`ml-1 px-2 py-1 text-sm rounded-md ${isEventsPaneExpanded ? 'bg-gray-300' : 'bg-gray-200'} hover:bg-gray-300`}
           title={isEventsPaneExpanded ? "Hide logs" : "Show logs"}
         >
@@ -145,14 +172,14 @@ function BottomToolbar({
           id="functions"
           type="checkbox"
           checked={showFunctionCalls}
-          onChange={(e) => setShowFunctionCalls(e.target.checked)}
+          onChange={handleFunctionsChange}
           className="w-4 h-4"
         />
         <label htmlFor="functions" className="flex items-center cursor-pointer">
           Functions
         </label>
         <button
-          onClick={() => setShowFunctionCalls(!showFunctionCalls)}
+          onClick={toggleShowFunctionCalls}
           className={`ml-1 px-2 py-1 text-sm rounded-md ${showFunctionCalls ? 'bg-gray-300' : 'bg-gray-200'} hover:bg-gray-300`}
           title={showFunctionCalls ? "Hide function calls" : "Show function calls"}
         >
@@ -185,4 +212,4 @@ function BottomToolbar({
   );
 }
 
-export default BottomToolbar;
+export default React.memo(BottomToolbar);
