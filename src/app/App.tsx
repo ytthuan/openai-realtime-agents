@@ -22,6 +22,7 @@ import { createModerationGuardrail } from "@/app/agentConfigs/guardrails";
 
 // Agent configs
 import { allAgentSets, defaultAgentSetKey } from "@/app/agentConfigs";
+import { parseAgentsFromJson } from "@/app/lib/agentConfigLoader";
 import { customerServiceRetailScenario } from "@/app/agentConfigs/customerServiceRetail";
 import { chatSupervisorScenario } from "@/app/agentConfigs/chatSupervisor";
 import { customerServiceRetailCompanyName } from "@/app/agentConfigs/customerServiceRetail";
@@ -133,20 +134,42 @@ function App() {
   useHandleSessionHistory();
 
   useEffect(() => {
-    let finalAgentConfig = searchParams.get("agentConfig");
-    if (!finalAgentConfig || !allAgentSets[finalAgentConfig]) {
-      finalAgentConfig = defaultAgentSetKey;
+    async function initConfig() {
+      let key = searchParams.get("agentConfig") || defaultAgentSetKey;
+
+      // 1. Try built-in configs first.
+      if (allAgentSets[key]) {
+        const agents = allAgentSets[key];
+        setSelectedAgentName(agents[0]?.name || "");
+        setSelectedAgentConfigSet(agents);
+        // Ensure map contains entry for realtime connection helper
+        sdkScenarioMap[key] = agents;
+        return;
+      }
+
+      // 2. Attempt to fetch dynamic JSON config via API.
+      try {
+        const res = await fetch(`/api/agentConfigs/${key}`);
+        if (res.ok) {
+          const json = await res.json();
+          const agents = parseAgentsFromJson(json);
+          // Cache in local map so later steps can connect.
+          sdkScenarioMap[key] = agents;
+          setSelectedAgentName(agents[0]?.name || "");
+          setSelectedAgentConfigSet(agents);
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to load dynamic agent config", err);
+      }
+
+      // 3. Fallback to default config & update URL.
       const url = new URL(window.location.toString());
-      url.searchParams.set("agentConfig", finalAgentConfig);
+      url.searchParams.set("agentConfig", defaultAgentSetKey);
       window.location.replace(url.toString());
-      return;
     }
 
-    const agents = allAgentSets[finalAgentConfig];
-    const agentKeyToUse = agents[0]?.name || "";
-
-    setSelectedAgentName(agentKeyToUse);
-    setSelectedAgentConfigSet(agents);
+    initConfig();
   }, [searchParams]);
 
   useEffect(() => {
