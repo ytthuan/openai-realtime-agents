@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, ChangeEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { parseAgentsFromJson } from "@/app/lib/agentConfigLoader";
 
 interface SaveStatus {
   type: "idle" | "saving" | "success" | "error";
@@ -22,6 +23,7 @@ function AgentConfigEditor() {
   }
 ]`);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>({ type: "idle" });
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   // Fetch existing config (if present) on first render / name change
   useEffect(() => {
@@ -44,6 +46,17 @@ function AgentConfigEditor() {
       cancelled = true;
     };
   }, [configName]);
+
+  // Validate JSON whenever it changes
+  useEffect(() => {
+    try {
+      const parsed = JSON.parse(jsonText);
+      parseAgentsFromJson(parsed); // will throw if invalid
+      setValidationError(null);
+    } catch (err: any) {
+      setValidationError(err.message ?? "Invalid JSON");
+    }
+  }, [jsonText]);
 
   const handleSave = async () => {
     try {
@@ -96,7 +109,7 @@ function AgentConfigEditor() {
         <button
           className="bg-blue-600 text-white rounded px-4 py-2 disabled:opacity-60"
           onClick={handleSave}
-          disabled={saveStatus.type === "saving"}
+          disabled={saveStatus.type === "saving" || !!validationError}
         >
           {saveStatus.type === "saving" ? "Saving…" : "Save"}
         </button>
@@ -108,7 +121,11 @@ function AgentConfigEditor() {
         </button>
       </div>
 
-      {saveStatus.message && (
+      {validationError && (
+        <p className="mt-4 text-sm text-red-600">{validationError}</p>
+      )}
+
+      {saveStatus.message && !validationError && (
         <p className={`mt-4 text-sm ${statusColor}`}>{saveStatus.message}</p>
       )}
     </div>

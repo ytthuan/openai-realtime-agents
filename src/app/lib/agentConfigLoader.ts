@@ -36,6 +36,26 @@ export function parseAgentsFromJson(json: any): RealtimeAgent[] {
     if (!name || typeof name !== "string") {
       throw new Error(`Agent at index ${idx} is missing required 'name' string field.`);
     }
+
+    // Validate voice if specified
+    const ALLOWED_VOICES = [
+      "alloy",
+      "echo",
+      "nova",
+      "shimmer",
+      "sage",
+    ] as const;
+    if (voice && !ALLOWED_VOICES.includes(voice)) {
+      throw new Error(
+        `Invalid voice '${voice}' for agent '${name}'. Allowed voices: ${ALLOWED_VOICES.join(", ")}`
+      );
+    }
+
+    // Instructions are mandatory and must be a non-empty string
+    if (!instructions || typeof instructions !== "string" || !instructions.trim()) {
+      throw new Error(`Agent '${name}' must include non-empty 'instructions'.`);
+    }
+
     if (handoffs && !Array.isArray(handoffs)) {
       throw new Error(`'handoffs' for agent '${name}' must be an array of agent names.`);
     }
