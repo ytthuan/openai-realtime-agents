@@ -16,20 +16,52 @@ export interface JsonRealtimeAgent {
  * in this dynamic loader for security reasons.
  */
 export function parseAgentsFromJson(json: any): RealtimeAgent[] {
-  const agentConfigs: JsonRealtimeAgent[] = Array.isArray(json)
+  const agentConfigsRaw: unknown[] = Array.isArray(json)
     ? json
-    : Array.isArray(json?.agents)
-    ? json.agents
+    : Array.isArray((json as any)?.agents)
+    ? (json as any).agents
     : [];
 
-  if (agentConfigs.length === 0) {
-    throw new Error('No agents found in JSON payload');
+  if (agentConfigsRaw.length === 0) {
+    throw new Error("Invalid agent config JSON – expected an array of agents or an object with an 'agents' array.");
+  }
+
+  // Validate and cast
+  const agentConfigs: JsonRealtimeAgent[] = agentConfigsRaw.map((item, idx) => {
+    if (typeof item !== "object" || item === null) {
+      throw new Error(`Agent at index ${idx} is not a valid object`);
+    }
+    const { name, voice, instructions, handoffs, handoffDescription } = item as Record<string, any>;
+
+    if (!name || typeof name !== "string") {
+      throw new Error(`Agent at index ${idx} is missing required 'name' string field.`);
+    }
+    if (handoffs && !Array.isArray(handoffs)) {
+      throw new Error(`'handoffs' for agent '${name}' must be an array of agent names.`);
+    }
+
+    return {
+      name,
+      voice,
+      instructions,
+      handoffs,
+      handoffDescription,
+    } as JsonRealtimeAgent;
+  });
+
+  // Check for duplicate names
+  const nameSet = new Set<string>();
+  for (const cfg of agentConfigs) {
+    if (nameSet.has(cfg.name)) {
+      throw new Error(`Duplicate agent name detected: '${cfg.name}'. Names must be unique.`);
+    }
+    nameSet.add(cfg.name);
   }
 
   // First pass – create empty agent instances so references can resolve.
   const agentMap: Record<string, RealtimeAgent> = {};
   for (const cfg of agentConfigs) {
-    agentMap[cfg.name] = new (RealtimeAgent as any)({
+    agentMap[cfg.name] = new RealtimeAgent({
       name: cfg.name,
       voice: cfg.voice ?? 'alloy',
       instructions: cfg.instructions ?? '',

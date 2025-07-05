@@ -1,12 +1,17 @@
-// @ts-nocheck
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, ChangeEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+
+interface SaveStatus {
+  type: "idle" | "saving" | "success" | "error";
+  message?: string;
+}
 
 function AgentConfigEditor() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialName = searchParams.get("name") || "myConfig";
+
+  const initialName = (searchParams.get("name") || "myConfig").trim();
 
   const [configName, setConfigName] = useState<string>(initialName);
   const [jsonText, setJsonText] = useState<string>(`[
@@ -16,27 +21,33 @@ function AgentConfigEditor() {
     "instructions": "Say hello!"
   }
 ]`);
-  const [statusMsg, setStatusMsg] = useState<string>("");
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>({ type: "idle" });
 
-  // Load existing config if present
+  // Fetch existing config (if present) on first render / name change
   useEffect(() => {
+    let cancelled = false;
     async function load() {
       if (!configName) return;
       try {
         const res = await fetch(`/api/agentConfigs/${configName}`);
-        if (res.ok) {
+        if (!cancelled && res.ok) {
           const data = await res.json();
           setJsonText(JSON.stringify(data, null, 2));
         }
       } catch (err) {
-        console.warn("No existing config or failed to load", err);
+        // Ignore if not found – treat as new config. Other errors logged.
+        console.warn("Failed to load config", err);
       }
     }
     load();
+    return () => {
+      cancelled = true;
+    };
   }, [configName]);
 
   const handleSave = async () => {
     try {
+      setSaveStatus({ type: "saving" });
       const parsed = JSON.parse(jsonText);
       const res = await fetch(`/api/agentConfigs/${configName}`, {
         method: "POST",
@@ -44,15 +55,24 @@ function AgentConfigEditor() {
         body: JSON.stringify(parsed),
       });
       if (res.ok) {
-        setStatusMsg("Saved successfully!");
+        setSaveStatus({ type: "success", message: "Saved successfully!" });
       } else {
-        const err = await res.json();
-        setStatusMsg("Error: " + (err?.error || res.statusText));
+        const err = (await res.json()) as { error?: string };
+        setSaveStatus({ type: "error", message: err.error || res.statusText });
       }
     } catch (err: any) {
-      setStatusMsg("Invalid JSON: " + err.message);
+      setSaveStatus({ type: "error", message: err?.message || "Unknown error" });
     }
   };
+
+  const colorMap = {
+    idle: "text-gray-600",
+    saving: "text-blue-600",
+    success: "text-green-600",
+    error: "text-red-600",
+  } as const;
+
+  const statusColor: string = colorMap[saveStatus.type as keyof typeof colorMap];
 
   return (
     <div className="p-8 max-w-4xl mx-auto text-gray-800">
@@ -62,22 +82,23 @@ function AgentConfigEditor() {
       <input
         className="border border-gray-300 rounded w-full p-2 mb-4"
         value={configName}
-        onChange={(e) => setConfigName(e.target.value)}
+        onChange={(e: ChangeEvent<HTMLInputElement>) => setConfigName(e.target.value)}
       />
 
       <label className="block mb-2 font-medium">JSON Content</label>
       <textarea
         className="border border-gray-300 rounded w-full p-2 font-mono text-sm h-96"
         value={jsonText}
-        onChange={(e) => setJsonText(e.target.value)}
+        onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setJsonText(e.target.value)}
       />
 
       <div className="flex gap-2 mt-4">
         <button
-          className="bg-blue-600 text-white rounded px-4 py-2"
+          className="bg-blue-600 text-white rounded px-4 py-2 disabled:opacity-60"
           onClick={handleSave}
+          disabled={saveStatus.type === "saving"}
         >
-          Save
+          {saveStatus.type === "saving" ? "Saving…" : "Save"}
         </button>
         <button
           className="bg-gray-200 text-gray-800 rounded px-4 py-2"
@@ -86,7 +107,10 @@ function AgentConfigEditor() {
           Back
         </button>
       </div>
-      {statusMsg && <p className="mt-4 text-sm">{statusMsg}</p>}
+
+      {saveStatus.message && (
+        <p className={`mt-4 text-sm ${statusColor}`}>{saveStatus.message}</p>
+      )}
     </div>
   );
 }
