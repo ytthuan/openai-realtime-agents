@@ -30,3 +30,14 @@ declare module 'next/navigation' {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   export function useSearchParams(): any;
 }
+
+declare module 'uuid' {
+  // We only use v4 in this project
+  export function v4(options?: any): string;
+}
+
+declare module 'next/image' {
+  import * as React from 'react';
+  const Image: React.ComponentType<any>;
+  export default Image;
+}

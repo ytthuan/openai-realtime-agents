@@ -51,10 +51,14 @@ function AgentConfigEditor() {
   useEffect(() => {
     try {
       const parsed = JSON.parse(jsonText);
-      parseAgentsFromJson(parsed); // will throw if invalid
+      parseAgentsFromJson(parsed); // will throw AgentConfigValidationError if invalid
       setValidationError(null);
     } catch (err: any) {
-      setValidationError(err.message ?? "Invalid JSON");
+      if (err?.name === "SyntaxError") {
+        setValidationError("JSON syntax error: " + err.message);
+      } else {
+        setValidationError(err?.message || "Invalid data");
+      }
     }
   }, [jsonText]);
 
@@ -122,7 +126,17 @@ function AgentConfigEditor() {
       </div>
 
       {validationError && (
-        <p className="mt-4 text-sm text-red-600">{validationError}</p>
+        <div className="mt-4 text-sm text-red-600 whitespace-pre-wrap">
+          {validationError.split("\n").length > 1 ? (
+            <ul className="list-disc ml-5">
+              {validationError.split("\n").map((e: string, idx: number) => (
+                <li key={idx}>{e}</li>
+              ))}
+            </ul>
+          ) : (
+            <span>{validationError}</span>
+          )}
+        </div>
       )}
 
       {saveStatus.message && !validationError && (
