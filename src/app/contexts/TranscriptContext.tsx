@@ -76,6 +76,12 @@ export const TranscriptProvider: FC<PropsWithChildren> = ({ children }) => {
         createdAtMs: Date.now(),
         status: "IN_PROGRESS",
         isHidden,
+        // Initialize guardrailResult for assistant messages so the chip shows for both pass and fail cases
+        ...(role === "assistant" && {
+          guardrailResult: {
+            status: "IN_PROGRESS",
+          }
+        }),
       };
 
       return [...prev, newItem];
