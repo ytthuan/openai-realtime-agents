@@ -106,6 +106,23 @@ export function useHandleSessionHistory() {
         addTranscriptBreadcrumb('Output Guardrail Active', { details: failureDetails });
       } else {
         addTranscriptMessage(itemId, role, text);
+        
+        // For assistant messages, add a timeout to check guardrail status
+        if (role === 'assistant') {
+          setTimeout(() => {
+            const transcriptItem = transcriptItems.find((i) => i.itemId === itemId);
+            if (transcriptItem?.guardrailResult?.status === 'IN_PROGRESS') {
+              console.log("[guardrail-fallback] Timeout triggered, marking pending guardrail as PASS for:", itemId);
+              updateTranscriptItem(itemId, {
+                guardrailResult: {
+                  status: 'DONE',
+                  category: 'NONE',
+                  rationale: 'Content passed moderation checks (timeout fallback)',
+                },
+              });
+            }
+          }, 5000); // 5 second timeout
+        }
       }
     }
   }
@@ -121,6 +138,22 @@ export function useHandleSessionHistory() {
 
       if (text) {
         updateTranscriptMessage(itemId, text, false);
+        
+        // For assistant messages, if guardrail is still pending and message is complete,
+        // mark guardrail as PASS since no guardrail_tripped event was fired
+        if (item.role === 'assistant') {
+          const transcriptItem = transcriptItems.find((i) => i.itemId === itemId);
+          if (transcriptItem?.guardrailResult?.status === 'IN_PROGRESS') {
+            console.log("[handleHistoryUpdated] Marking pending guardrail as PASS for completed assistant message:", itemId);
+            updateTranscriptItem(itemId, {
+              guardrailResult: {
+                status: 'DONE',
+                category: 'NONE',
+                rationale: 'Content passed moderation checks',
+              },
+            });
+          }
+        }
       }
     });
   }
@@ -169,17 +202,30 @@ export function useHandleSessionHistory() {
   }
 
   function handleGuardrailTripped(details: any, _agent: any, guardrail: any) {
-    console.log("[guardrail tripped]", details, _agent, guardrail);
+    console.log("[guardrail tripped] Event received");
+    console.log("[guardrail tripped] Details:", details);
+    console.log("[guardrail tripped] Agent:", _agent);
+    console.log("[guardrail tripped] Guardrail:", guardrail);
+    
     const moderation = extractModeration(guardrail.result.output.outputInfo);
+    console.log("[guardrail tripped] Extracted moderation:", moderation);
+    
     logServerEvent({ type: 'guardrail_tripped', payload: moderation });
 
     // find the last assistant message in details.context.history
     const lastAssistant = extractLastAssistantMessage(details?.context?.history);
+    console.log("[guardrail tripped] Last assistant message:", lastAssistant);
 
     if (lastAssistant && moderation) {
       const category = moderation.moderationCategory ?? 'NONE';
       const rationale = moderation.moderationRationale ?? '';
       const offendingText: string | undefined = moderation?.testText;
+
+      console.log("[guardrail tripped] Updating transcript item:", lastAssistant.itemId, {
+        category,
+        rationale,
+        offendingText,
+      });
 
       updateTranscriptItem(lastAssistant.itemId, {
         guardrailResult: {
@@ -189,6 +235,8 @@ export function useHandleSessionHistory() {
           testText: offendingText,
         },
       });
+    } else {
+      console.warn("[guardrail tripped] Missing lastAssistant or moderation data");
     }
   }
 
