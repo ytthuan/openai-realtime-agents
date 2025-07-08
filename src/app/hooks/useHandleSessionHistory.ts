@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { useTranscript } from "@/app/contexts/TranscriptContext";
 import { useEvent } from "@/app/contexts/EventContext";
 
@@ -14,6 +14,39 @@ export function useHandleSessionHistory() {
   } = useTranscript();
 
   const { logServerEvent } = useEvent();
+
+  // Add effect to listen for guardrail success events
+  useEffect(() => {
+    const handleGuardrailSuccess = (event: CustomEvent) => {
+      console.log("[guardrail success] Custom event received:", event.detail);
+      const { agentOutput, result, context } = event.detail;
+      
+      // Find the last assistant message to update its guardrail status
+      const lastAssistantItem = transcriptItems
+        .filter(item => item.type === 'MESSAGE' && item.role === 'assistant')
+        .sort((a, b) => b.createdAtMs - a.createdAtMs)[0];
+      
+      if (lastAssistantItem && lastAssistantItem.guardrailResult?.status === 'IN_PROGRESS') {
+        console.log("[guardrail success] Updating guardrail status to PASS for:", lastAssistantItem.itemId);
+        updateTranscriptItem(lastAssistantItem.itemId, {
+          guardrailResult: {
+            status: 'DONE',
+            category: result.moderationCategory,
+            rationale: result.moderationRationale,
+            testText: result.testText,
+          },
+        });
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('guardrail_success', handleGuardrailSuccess as EventListener);
+      
+      return () => {
+        window.removeEventListener('guardrail_success', handleGuardrailSuccess as EventListener);
+      };
+    }
+  }, [transcriptItems, updateTranscriptItem]);
 
   /* ----------------------- helpers ------------------------- */
 
@@ -106,23 +139,6 @@ export function useHandleSessionHistory() {
         addTranscriptBreadcrumb('Output Guardrail Active', { details: failureDetails });
       } else {
         addTranscriptMessage(itemId, role, text);
-        
-        // For assistant messages, add a timeout to check guardrail status
-        if (role === 'assistant') {
-          setTimeout(() => {
-            const transcriptItem = transcriptItems.find((i) => i.itemId === itemId);
-            if (transcriptItem?.guardrailResult?.status === 'IN_PROGRESS') {
-              console.log("[guardrail-fallback] Timeout triggered, marking pending guardrail as PASS for:", itemId);
-              updateTranscriptItem(itemId, {
-                guardrailResult: {
-                  status: 'DONE',
-                  category: 'NONE',
-                  rationale: 'Content passed moderation checks (timeout fallback)',
-                },
-              });
-            }
-          }, 5000); // 5 second timeout
-        }
       }
     }
   }
@@ -138,22 +154,6 @@ export function useHandleSessionHistory() {
 
       if (text) {
         updateTranscriptMessage(itemId, text, false);
-        
-        // For assistant messages, if guardrail is still pending and message is complete,
-        // mark guardrail as PASS since no guardrail_tripped event was fired
-        if (item.role === 'assistant') {
-          const transcriptItem = transcriptItems.find((i) => i.itemId === itemId);
-          if (transcriptItem?.guardrailResult?.status === 'IN_PROGRESS') {
-            console.log("[handleHistoryUpdated] Marking pending guardrail as PASS for completed assistant message:", itemId);
-            updateTranscriptItem(itemId, {
-              guardrailResult: {
-                status: 'DONE',
-                category: 'NONE',
-                rationale: 'Content passed moderation checks',
-              },
-            });
-          }
-        }
       }
     });
   }

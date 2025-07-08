@@ -141,7 +141,7 @@ export function createModerationGuardrail(companyName: string) {
   return {
     name: 'moderation_guardrail',
 
-    async execute({ agentOutput }: RealtimeOutputGuardrailArgs): Promise<RealtimeOutputGuardrailResult> {
+    async execute({ agentOutput, context }: RealtimeOutputGuardrailArgs): Promise<RealtimeOutputGuardrailResult> {
       console.log('[guardrail] Executing guardrail for output:', agentOutput.substring(0, 100) + '...');
       console.log('[guardrail] Company name:', companyName);
       
@@ -150,6 +150,21 @@ export function createModerationGuardrail(companyName: string) {
         const triggered = res.moderationCategory !== 'NONE';
         
         console.log('[guardrail] Guardrail execution completed. Category:', res.moderationCategory, 'Triggered:', triggered);
+        
+        // If guardrail passed (not triggered), dispatch a custom event
+        if (!triggered) {
+          console.log('[guardrail] Dispatching guardrail success event');
+          // Dispatch a custom event that the UI can listen for
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('guardrail_success', {
+              detail: {
+                agentOutput,
+                result: res,
+                context
+              }
+            }));
+          }
+        }
         
         return {
           tripwireTriggered: triggered,
